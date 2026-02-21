@@ -17,6 +17,9 @@ const config = {
     }
 };
 
+// Configurations
+const assetsPath = 'assets/phaser/';
+
 // start Phaser game
 const game = new Phaser.Game(config);
 
@@ -28,11 +31,11 @@ let worldWidth = 2000; // larghezza mondo
 
 function preload() {
     // load images and sprites
-    this.load.image('sky', 'assets/sky.png');
-    this.load.image('ground', 'assets/platform.png');
-    this.load.image('lingottino', 'assets/lingottino.png');
-    this.load.image('bomb', 'assets/bomb.png');
-    this.load.spritesheet('povero', 'assets/povero.png', {
+    this.load.image('sky', assetsPath + 'sky.png');
+    this.load.image('ground', assetsPath + 'platform.png');
+    this.load.image('lingottino', assetsPath + 'lingottino.png');
+    this.load.image('bomb', assetsPath + 'bomb.png');
+    this.load.spritesheet('povero', assetsPath + 'povero.png', {
         frameWidth: 32,
         frameHeight: 48
     });
@@ -50,13 +53,15 @@ function create() {
     // platforms group (static)
     platforms = this.physics.add.staticGroup();
 
+    // Terreno lungo tutto il mondo
     for (let x = 0; x < worldWidth; x += 400) {
         platforms.create(x, 568, 'ground')
             .setOrigin(0, 0.5)
+            .setScale(2)
             .refreshBody();
     }
 
-    platforms.create(1000, 568, 'ground').setScale(4).refreshBody();
+    //platforms.create(1000, 568, 'ground').setScale(4).refreshBody();
     platforms.create(400, 400, 'ground');
     platforms.create(1200, 350, 'ground');
     platforms.create(1600, 250, 'ground');
