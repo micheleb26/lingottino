@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="am" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffe9a8"/>
+      <stop offset="0.45" stop-color="#f5b942"/>
+      <stop offset="1" stop-color="#b9791a"/>
+    </linearGradient>
+  </defs>
+  <g transform="rotate(-45 50 50)">
+    <!-- bossolo -->
+    <rect x="26" y="40" width="38" height="20" rx="4" fill="url(#am)" stroke="#6e4a10" stroke-width="2.5"/>
+    <rect x="26" y="40" width="7" height="20" rx="3" fill="#6e4a10" opacity="0.45"/>
+    <!-- ogiva -->
+    <path d="M64 40 L82 50 L64 60 Z" fill="#d7cfc0" stroke="#6e4a10" stroke-width="2.5" stroke-linejoin="round"/>
+    <!-- riflesso -->
+    <rect x="30" y="43" width="30" height="3" rx="1.5" fill="#ffffff" opacity="0.5"/>
+  </g>
+</svg>

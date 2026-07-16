@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 80">
+  <defs>
+    <linearGradient id="ig-front" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffd860"/>
+      <stop offset="0.55" stop-color="#f2b32e"/>
+      <stop offset="1" stop-color="#c8860f"/>
+    </linearGradient>
+    <linearGradient id="ig-top" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#fff3c4"/>
+      <stop offset="1" stop-color="#ffdf8c"/>
+    </linearGradient>
+  </defs>
+  <!-- ombra -->
+  <ellipse cx="60" cy="71" rx="44" ry="6" fill="#000000" opacity="0.18"/>
+  <!-- faccia superiore -->
+  <polygon points="34,14 90,14 106,30 18,30" fill="url(#ig-top)" stroke="#a9760c" stroke-width="2" stroke-linejoin="round"/>
+  <!-- faccia frontale -->
+  <polygon points="18,30 106,30 96,64 28,64" fill="url(#ig-front)" stroke="#a9760c" stroke-width="2" stroke-linejoin="round"/>
+  <!-- riflesso lucido -->
+  <polygon points="30,33 46,33 40,60 26,60" fill="#ffffff" opacity="0.22"/>
+</svg>
