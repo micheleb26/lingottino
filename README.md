@@ -10,13 +10,17 @@ Gioco online: [https://micheleb26.github.io/lingottino/](https://micheleb26.gith
 | --- | --- |
 | Frecce / `A` `D` | Muoviti a sinistra e destra |
 | Freccia su / `W` / `Spazio` | Salta (altezza variabile) |
-| `F` | Spara (arma base, munizioni illimitate) |
+| `F` | Lancia un lingotto d'oro (munizioni illimitate) |
 | `P` | Pausa |
 | `I` | Impostazioni |
 | `Invio` | Ricomincia (a game over) |
 
-Elimina i nemici sparando o saltandoci sopra: ai nemici di primo livello
-basta un colpo. Alcuni nemici (gli Owlet) sparano a loro volta. Raccogli tutti
+Il protagonista è un uomo d'affari in giacca e cravatta che combatte a suon di
+lingotti d'oro. Ogni volta che elimina un nemico grida **OOOOO CAREISGOLD**
+(fumetto a schermo + voce, se il browser supporta la sintesi vocale).
+
+Elimina i nemici lanciando lingotti o saltandoci sopra: ai nemici di primo
+livello basta un colpo. Alcuni nemici (gli Owlet) sparano a loro volta. Raccogli tutti
 i lingotti d'oro (che scintillano) per farne ricomparire di nuovi (attenzione:
 compare anche una bomba).
 
@@ -45,11 +49,12 @@ src/
   entities/            # Entity (base) -> Player, Enemy -> ShooterEnemy; Projectile, Ingot
   ui/                  # Hud, HeartsDisplay, AmmoDisplay, shine (riflesso)
   utils/audio.js       # sblocco del contesto audio
+  utils/businessman.js # sprite del protagonista disegnate a runtime (32x32)
 assets/
   phaser/              # scenario, bomba, logo, pulsanti
   ui/                  # cuori, munizioni, riflesso (SVG)
   items/               # lingotto d'oro raccoglibile (SVG)
-  player/pink/         # Pink Monster (giocatore)
+  player/pink/         # Pink Monster (vecchio giocatore, non più usato)
   enemies/dude_monster, owlet_monster   # nemici
 sounds/                # musica
 ```

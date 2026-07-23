@@ -1,4 +1,5 @@
 import { PATHS, SCENES, CHARACTERS, CHAR_ACTIONS, CHAR_FRAME } from '../config/constants.js';
+import { createBusinessmanTextures } from '../utils/businessman.js';
 
 // Carica una sola volta tutti gli asset e registra le animazioni globali,
 // poi passa al menu principale. Centralizzare qui i caricamenti evita
@@ -33,11 +34,13 @@ export class BootScene extends Phaser.Scene {
         // Caricato alla dimensione di visualizzazione: niente scala -> corpo fisico corretto.
         this.load.svg('ingot', 'assets/items/ingot.svg', { width: 36, height: 24 });
 
+        // Stesso lingotto, più piccolo: è il "proiettile" lanciato dal player.
+        this.load.svg('gold_shot', 'assets/items/ingot.svg', { width: 22, height: 15 });
+
         // Personaggi (player + nemici): una spritesheet per azione.
         Object.keys(CHARACTERS).forEach((prefix) => this.loadCharacter(prefix));
 
-        // Proiettili (rock dei pack monster).
-        this.load.image('rock', 'assets/player/pink/Rock1.png');
+        // Proiettili: il player lancia lingotti (gold_shot), i nemici sassi.
         this.load.image('rock_enemy', 'assets/enemies/dude_monster/Rock2.png');
 
         // Audio
@@ -45,11 +48,15 @@ export class BootScene extends Phaser.Scene {
     }
 
     create() {
+        // I personaggi "generated" non hanno file: vanno disegnati prima di
+        // creare le animazioni, che leggono i frame dalla texture.
+        createBusinessmanTextures(this, 'biz');
+
         Object.keys(CHARACTERS).forEach((prefix) => this.createCharacterAnims(prefix));
 
         // Le icone UI non sono pixel art: filtro lineare per bordi morbidi
         // (il resto del gioco usa NEAREST per gli sprite 32x32).
-        ['heart_full', 'heart_empty', 'ammo', 'shine', 'ingot'].forEach((key) => {
+        ['heart_full', 'heart_empty', 'ammo', 'shine', 'ingot', 'gold_shot'].forEach((key) => {
             if (this.textures.exists(key)) {
                 this.textures.get(key).setFilter(Phaser.Textures.FilterMode.LINEAR);
             }
@@ -59,7 +66,8 @@ export class BootScene extends Phaser.Scene {
     }
 
     loadCharacter(prefix) {
-        const { folder, base } = CHARACTERS[prefix];
+        const { folder, base, generated } = CHARACTERS[prefix];
+        if (generated) return; // texture create a runtime, niente da caricare
         for (const [name, def] of Object.entries(CHAR_ACTIONS)) {
             this.load.spritesheet(
                 `${prefix}_${name}`,

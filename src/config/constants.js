@@ -9,7 +9,7 @@ export const GAME = {
 };
 
 export const PLAYER = {
-    PREFIX: 'pink',
+    PREFIX: 'biz',
     SPEED: 200,
     JUMP_VELOCITY: 500,
     JUMP_CUT_VELOCITY: 150, // taglio del salto quando si rilascia il tasto (altezza variabile)
@@ -39,9 +39,20 @@ export const SCORE = {
     INGOT: 10
 };
 
-// Personaggi: cartella + prefisso del nome file. I tre condividono lo stesso
+// Il grido dell'uomo d'affari quando elimina un nemico.
+export const TAUNT = {
+    TEXT: 'OOOOO CAREISGOLD',
+    SPEECH: 'ooooo care is gold', // testo letto dalla sintesi vocale del browser
+    DURATION_MS: 900,
+    COOLDOWN_MS: 450             // evita sovrapposizioni con kill ravvicinate
+};
+
+// Personaggi: cartella + prefisso del nome file. Condividono tutti lo stesso
 // set di animazioni (vedi CHAR_ACTIONS), quindi basta cambiare questi dati.
+// `generated: true` = niente file su disco, i frame sono disegnati a runtime
+// (vedi utils/businessman.js).
 export const CHARACTERS = {
+    biz: { generated: true },
     pink: { folder: 'assets/player/pink/', base: 'Pink_Monster' },
     dude: { folder: 'assets/enemies/dude_monster/', base: 'Dude_Monster' },
     owlet: { folder: 'assets/enemies/owlet_monster/', base: 'Owlet_Monster' }

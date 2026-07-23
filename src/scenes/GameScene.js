@@ -1,4 +1,4 @@
-import { GAME, PLAYER, ENEMY, PROJECTILE, SCORE, SCENES } from '../config/constants.js';
+import { GAME, PLAYER, ENEMY, PROJECTILE, SCORE, SCENES, TAUNT } from '../config/constants.js';
 import { Player } from '../entities/Player.js';
 import { Enemy } from '../entities/Enemy.js';
 import { ShooterEnemy } from '../entities/ShooterEnemy.js';
@@ -164,10 +164,18 @@ export class GameScene extends Phaser.Scene {
 
     // --- Proiettili ---
 
+    // Il protagonista non tira sassi: lancia lingotti d'oro, che ruotano in volo.
     firePlayerBullet(x, y, direction) {
-        const bullet = new Projectile(this, x, y, 'rock');
+        const bullet = new Projectile(this, x, y, 'gold_shot');
         this.playerBullets.add(bullet);
         bullet.fire(direction, PROJECTILE.PLAYER_SPEED); // dopo add: il gruppo resetta il corpo
+
+        this.tweens.add({
+            targets: bullet,
+            angle: direction * 360,
+            duration: 600,
+            repeat: -1
+        });
     }
 
     fireEnemyBullet(x, y, direction) {
@@ -183,7 +191,10 @@ export class GameScene extends Phaser.Scene {
     onBulletHitEnemy(bullet, enemy) {
         if (enemy.isDying) return;
         bullet.destroy();
-        if (enemy.takeDamage(1)) this.addScore(ENEMY.SCORE);
+        if (enemy.takeDamage(1)) {
+            this.addScore(ENEMY.SCORE);
+            this.yellTaunt();
+        }
     }
 
     // ATTENZIONE all'ordine degli argomenti: in una collisione sprite-vs-gruppo
@@ -235,6 +246,7 @@ export class GameScene extends Phaser.Scene {
             enemy.die();
             player.setVelocityY(-ENEMY.STOMP_BOUNCE);
             this.addScore(ENEMY.SCORE);
+            this.yellTaunt();
         } else if (!player.invulnerable) {
             this.loseLife();
         }
@@ -244,6 +256,51 @@ export class GameScene extends Phaser.Scene {
         if (player.invulnerable) return;
         bomb.destroy();
         this.loseLife();
+    }
+
+    // Il grido del protagonista dopo un'eliminazione: fumetto che sale sopra la
+    // testa + voce del browser (la sintesi vocale non è ovunque disponibile,
+    // quindi è opzionale e non deve mai far saltare il gameplay).
+    yellTaunt() {
+        const now = this.time.now;
+        if (this.isGameOver || now < (this.nextTauntAt || 0)) return;
+        this.nextTauntAt = now + TAUNT.COOLDOWN_MS;
+
+        const shout = this.add.text(this.player.x, this.player.y - 34, TAUNT.TEXT, {
+            fontFamily: '"Trebuchet MS", "Segoe UI", Arial, sans-serif',
+            fontSize: '20px',
+            fontStyle: 'bold',
+            color: '#ffe14d',
+            stroke: '#3a2a00',
+            strokeThickness: 6
+        }).setOrigin(0.5).setDepth(900);
+
+        this.tweens.add({
+            targets: shout,
+            y: shout.y - 40,
+            scale: { from: 0.4, to: 1.15 },
+            alpha: { from: 1, to: 0 },
+            duration: TAUNT.DURATION_MS,
+            ease: 'Back.easeOut',
+            onComplete: () => shout.destroy()
+        });
+
+        this.speakTaunt();
+    }
+
+    speakTaunt() {
+        const synth = window.speechSynthesis;
+        if (!synth || this.sound.mute) return;
+        try {
+            synth.cancel(); // niente code di gridi accavallati
+            const utterance = new SpeechSynthesisUtterance(TAUNT.SPEECH);
+            utterance.rate = 1.15;
+            utterance.pitch = 0.7;  // voce da uomo d'affari
+            utterance.volume = 1;
+            synth.speak(utterance);
+        } catch (e) {
+            // Sintesi vocale non disponibile: resta il fumetto.
+        }
     }
 
     addScore(points) {
