@@ -20,7 +20,12 @@ export class BootScene extends Phaser.Scene {
         this.load.image('playBtn', a + 'play.png');
         this.load.image('settingsBtn', a + 'settings.png');
         this.load.image('sky', a + 'sky.png');
-        this.load.image('ground', a + 'platform.png');
+
+        // Piattaforme in mattoni d'oro (400x32 come la vecchia platform.png):
+        // 'ground' = pavimento continuo, 'gold_platform' = piattaforma sospesa
+        // (angoli arrotondati + bordo inferiore in ombra).
+        this.load.svg('ground', 'assets/platforms/gold_bricks_ground.svg', { width: 400, height: 32 });
+        this.load.svg('gold_platform', 'assets/platforms/gold_bricks_platform.svg', { width: 400, height: 32 });
         this.load.image('bomb', a + 'bomb.png');
 
         // UI: icone vettoriali (cuori, munizioni, riflesso) rasterizzate ad alta
@@ -56,7 +61,7 @@ export class BootScene extends Phaser.Scene {
 
         // Le icone UI non sono pixel art: filtro lineare per bordi morbidi
         // (il resto del gioco usa NEAREST per gli sprite 32x32).
-        ['heart_full', 'heart_empty', 'ammo', 'shine', 'ingot', 'gold_shot'].forEach((key) => {
+        ['heart_full', 'heart_empty', 'ammo', 'shine', 'ingot', 'gold_shot', 'ground', 'gold_platform'].forEach((key) => {
             if (this.textures.exists(key)) {
                 this.textures.get(key).setFilter(Phaser.Textures.FilterMode.LINEAR);
             }

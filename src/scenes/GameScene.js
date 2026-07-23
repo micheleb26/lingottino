@@ -53,16 +53,16 @@ export class GameScene extends Phaser.Scene {
     createPlatforms() {
         this.platforms = this.physics.add.staticGroup();
 
-        // Pavimento continuo (platform.png = 400x32).
+        // Pavimento continuo in mattoni d'oro (400x32).
         for (let x = 0; x < GAME.WORLD_WIDTH; x += 400) {
             this.platforms.create(x, GAME.HEIGHT - 32, 'ground')
                 .setOrigin(0, 0)
                 .refreshBody();
         }
 
-        // Piattaforme sospese.
+        // Piattaforme sospese: stessa muratura, ma con bordi rifiniti.
         [[500, 470], [1050, 390], [1550, 310], [1850, 470]].forEach(([x, y]) => {
-            this.platforms.create(x, y, 'ground');
+            this.platforms.create(x, y, 'gold_platform');
         });
     }
 
