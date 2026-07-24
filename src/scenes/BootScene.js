@@ -1,4 +1,4 @@
-import { PATHS, SCENES, CHARACTERS, CHAR_ACTIONS, CHAR_FRAME } from '../config/constants.js';
+import { PATHS, SCENES, CHARACTERS, CHAR_ACTIONS, CHAR_FRAME, DOCUMENTS } from '../config/constants.js';
 import { createBusinessmanTextures } from '../utils/businessman.js';
 
 // Carica una sola volta tutti gli asset e registra le animazioni globali,
@@ -47,6 +47,9 @@ export class BootScene extends Phaser.Scene {
 
         // Proiettili: il player lancia lingotti (gold_shot), i nemici sassi.
         this.load.image('rock_enemy', 'assets/enemies/dude_monster/Rock2.png');
+
+        // Documenti della pratica (pixel-art 32x32): restano su filtro NEAREST.
+        DOCUMENTS.forEach((d) => this.load.image(d.key, `assets/documents/${d.key}.png`));
 
         // Audio
         this.load.audio('mus_bg', s + 'music.mp3');

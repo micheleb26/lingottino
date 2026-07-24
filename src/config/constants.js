@@ -36,8 +36,27 @@ export const PROJECTILE = {
 };
 
 export const SCORE = {
-    INGOT: 10
+    INGOT: 10,
+    DOC: 100          // punti per ogni documento della pratica raccolto
 };
+
+// Documenti della "pratica" da raccogliere IN SEQUENZA: ne compare uno alla
+// volta, in un punto casuale della mappa, e solo quando viene raccolto appare
+// il successivo. `type` seleziona lo stile grafico (pixel-art in assets/documents/).
+// L'ordine di questo array È l'ordine di raccolta richiesto.
+export const DOCUMENTS = [
+    { key: 'doc_id_card',                   name: "Carta d'identità",        type: 'tessera' },
+    { key: 'doc_codice_fiscale',            name: 'Codice fiscale',          type: 'tessera' },
+    { key: 'doc_casellario',                name: 'Casellario giudiziario',  type: 'contratto' },
+    { key: 'doc_carichi_pendenti',          name: 'Carichi pendenti',        type: 'contratto' },
+    { key: 'doc_accordo_riservatezza',      name: 'Accordo riservatezza',    type: 'contratto' },
+    { key: 'doc_accordo_collaborazione',    name: 'Accordo di collaborazione', type: 'contratto' },
+    { key: 'doc_attestato_antiriciclaggio', name: 'Attestato antiriciclaggio', type: 'attestato' },
+    { key: 'doc_attestato_privacy',         name: 'Attestato privacy',       type: 'attestato' }
+];
+
+// Scritta di vittoria mostrata a tutto schermo quando la pratica è completa.
+export const WIN_TEXT = 'OOOOOOooooo\nCare is Gold!';
 
 // Il grido dell'uomo d'affari quando elimina un nemico.
 export const TAUNT = {

@@ -1,9 +1,10 @@
-import { GAME, PLAYER, ENEMY, PROJECTILE, SCORE, SCENES, TAUNT } from '../config/constants.js';
+import { GAME, PLAYER, ENEMY, PROJECTILE, SCORE, SCENES, TAUNT, DOCUMENTS, WIN_TEXT } from '../config/constants.js';
 import { Player } from '../entities/Player.js';
 import { Enemy } from '../entities/Enemy.js';
 import { ShooterEnemy } from '../entities/ShooterEnemy.js';
 import { Projectile } from '../entities/Projectile.js';
 import { Ingot } from '../entities/Ingot.js';
+import { Document } from '../entities/Document.js';
 import { Hud } from '../ui/Hud.js';
 
 // Scena principale di gioco: livello, player, nemici, lingotti, bombe e proiettili.
@@ -17,6 +18,9 @@ export class GameScene extends Phaser.Scene {
         this.lives = GAME.START_LIVES;
         this.isPaused = false;
         this.isGameOver = false;
+        this.isWin = false;
+        this.docIndex = 0;      // quanti documenti già raccolti (= indice del prossimo)
+        this.lastDocSpot = -1;  // ultimo punto di spawn usato, per non ripeterlo
     }
 
     create() {
@@ -35,12 +39,13 @@ export class GameScene extends Phaser.Scene {
         this.createIngots();
         this.createBombs();
         this.createUI();
+        this.createDocuments(); // dopo la UI: il primo spawn aggiorna l'HUD
         this.startMusic();
         this.bindKeys();
     }
 
     update() {
-        if (this.isPaused || this.isGameOver) return;
+        if (this.isPaused || this.isGameOver || this.isWin) return;
 
         this.player.update();
         this.enemies.children.iterate((enemy) => {
@@ -120,6 +125,44 @@ export class GameScene extends Phaser.Scene {
         this.physics.add.overlap(this.player, this.ingots, this.onCollectIngot, null, this);
     }
 
+    // Documenti della pratica: uno alla volta, in sequenza. Il gruppo esiste
+    // per gestire in un colpo solo collisioni e overlap; conterrà al più un
+    // documento attivo per volta.
+    createDocuments() {
+        this.documents = this.physics.add.group();
+        this.physics.add.collider(this.documents, this.platforms);
+        this.physics.add.overlap(this.player, this.documents, this.onCollectDocument, null, this);
+        this.spawnNextDocument();
+    }
+
+    // Punti di comparsa possibili: alcuni a terra (cadono fino al pavimento),
+    // altri appena sopra le piattaforme sospese -> altezze e posizioni varie.
+    docSpots() {
+        return [
+            { x: 260, y: 0 }, { x: 720, y: 0 }, { x: 1250, y: 0 }, { x: 1980, y: 0 },
+            { x: 500, y: 430 }, { x: 1050, y: 350 }, { x: 1550, y: 270 }, { x: 1850, y: 430 }
+        ];
+    }
+
+    spawnNextDocument() {
+        const def = DOCUMENTS[this.docIndex];
+        if (!def) return; // pratica completa
+
+        // Scegli un punto casuale diverso dall'ultimo usato.
+        const spots = this.docSpots();
+        let i = Phaser.Math.Between(0, spots.length - 1);
+        if (spots.length > 1) while (i === this.lastDocSpot) i = Phaser.Math.Between(0, spots.length - 1);
+        this.lastDocSpot = i;
+        const spot = spots[i];
+
+        const doc = new Document(this, spot.x, spot.y, def);
+        this.documents.add(doc);
+        doc.setCollideWorldBounds(true);
+        doc.setBounceY(0.2);
+
+        this.hud.setNextDoc(def);
+    }
+
     createBombs() {
         this.bombs = this.physics.add.group();
         this.physics.add.collider(this.bombs, this.platforms);
@@ -147,18 +190,18 @@ export class GameScene extends Phaser.Scene {
 
     bindKeys() {
         this.input.keyboard.on('keydown-P', () => {
-            if (!this.isGameOver) this.togglePause();
+            if (!this.isGameOver && !this.isWin) this.togglePause();
         });
 
         this.input.keyboard.on('keydown-I', () => {
-            if (this.isGameOver || this.scene.isActive(SCENES.SETTINGS)) return;
+            if (this.isGameOver || this.isWin || this.scene.isActive(SCENES.SETTINGS)) return;
             this.scene.pause();
             this.scene.launch(SCENES.SETTINGS, { returnScene: SCENES.GAME });
             this.scene.bringToTop(SCENES.SETTINGS);
         });
 
         this.input.keyboard.on('keydown-ENTER', () => {
-            if (this.isGameOver) this.scene.restart();
+            if (this.isGameOver || this.isWin) this.scene.restart();
         });
     }
 
@@ -224,6 +267,62 @@ export class GameScene extends Phaser.Scene {
             this.ingots.children.iterate((i) => i.enableBody(true, i.x, 0, true, true));
             this.spawnBomb();
         }
+    }
+
+    onCollectDocument(player, doc) {
+        // Solo il documento "corrente" conta (evita doppie raccolte se qualcosa
+        // resta attivo un frame in più).
+        if (!doc.active) return;
+        doc.destroy();
+
+        this.docIndex++;
+        this.addScore(SCORE.DOC);
+        this.hud.setDocProgress(this.docIndex, DOCUMENTS.length);
+
+        if (this.docIndex >= DOCUMENTS.length) {
+            this.hud.setNextDoc(null);
+            this.win();
+        } else {
+            this.spawnNextDocument();
+        }
+    }
+
+    // Pratica completa: schermata di vittoria a tutto schermo.
+    win() {
+        this.isWin = true;
+        this.physics.pause();
+        this.player.anims.play(`${PLAYER.PREFIX}-idle`, true);
+
+        const { width, height } = this.scale;
+        this.add.rectangle(width / 2, height / 2, width, height, 0x3a2a00, 0.85)
+            .setScrollFactor(0).setDepth(2000);
+
+        const banner = this.add.text(width / 2, height / 2, WIN_TEXT, {
+            fontFamily: '"Trebuchet MS", "Segoe UI", Arial, sans-serif',
+            fontSize: '64px',
+            fontStyle: 'bold',
+            color: '#ffe14d',
+            stroke: '#7a4f06',
+            strokeThickness: 12,
+            align: 'center',
+            lineSpacing: 6
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(2001);
+        banner.setShadow(0, 6, 'rgba(0,0,0,0.5)', 8, true, true);
+
+        // Entrata a molla + pulsazione dorata continua.
+        banner.setScale(0.3);
+        this.tweens.add({
+            targets: banner, scale: 1, duration: 700, ease: 'Back.easeOut',
+            onComplete: () => this.tweens.add({
+                targets: banner, scale: { from: 1, to: 1.06 },
+                duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
+            })
+        });
+
+        this.add.text(width / 2, height / 2 + 120, 'Premi INVIO per rigiocare', {
+            fontFamily: '"Trebuchet MS", "Segoe UI", Arial, sans-serif',
+            fontSize: '22px', color: '#ffffff'
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(2001);
     }
 
     spawnBomb() {
