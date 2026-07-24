@@ -51,6 +51,12 @@ export class BootScene extends Phaser.Scene {
         // Documenti della pratica (pixel-art 32x32): restano su filtro NEAREST.
         DOCUMENTS.forEach((d) => this.load.image(d.key, `assets/documents/${d.key}.png`));
 
+        // Piccione dispettoso e la sua "cacca" (pixel-art).
+        // Il piccione è una spritesheet 32x24: 4 frame per lo sbattito d'ali.
+        this.load.spritesheet('pigeon', 'assets/pigeon/pigeon.png', { frameWidth: 32, frameHeight: 24 });
+        this.load.image('pigeon_poop', 'assets/pigeon/pigeon_poop.png');
+        this.load.image('poop_splat', 'assets/pigeon/poop_splat.png');
+
         // Audio
         this.load.audio('mus_bg', s + 'music.mp3');
     }
@@ -61,6 +67,16 @@ export class BootScene extends Phaser.Scene {
         createBusinessmanTextures(this, 'biz');
 
         Object.keys(CHARACTERS).forEach((prefix) => this.createCharacterAnims(prefix));
+
+        // Volo del piccione: ali che sbattono (loop continuo).
+        if (!this.anims.exists('pigeon-fly')) {
+            this.anims.create({
+                key: 'pigeon-fly',
+                frames: this.anims.generateFrameNumbers('pigeon', { start: 0, end: 3 }),
+                frameRate: 10,
+                repeat: -1
+            });
+        }
 
         // Le icone UI non sono pixel art: filtro lineare per bordi morbidi
         // (il resto del gioco usa NEAREST per gli sprite 32x32).

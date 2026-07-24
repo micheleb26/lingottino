@@ -40,6 +40,21 @@ export const SCORE = {
     DOC: 100          // punti per ogni documento della pratica raccolto
 };
 
+// Piccione: vola avanti e indietro a un'altezza fissa dello schermo e, quando
+// si trova più o meno sopra il giocatore, gli lascia cadere addosso una cacca.
+// Se colpisce il player toglie punti (il punteggio può andare in negativo).
+export const PIGEON = {
+    SCREEN_Y: 180,          // altezza fissa sullo schermo: sotto le scritte dell'HUD
+    MARGIN: 40,             // margine di rimbalzo dai bordi dello schermo
+    SPEED: 130,             // velocità orizzontale (px/s)
+    AIM_THRESHOLD: 46,      // "più o meno sopra": scarto max in X per cagare
+    POOP_COOLDOWN_MS: 1600, // tempo minimo tra una cacca e l'altra
+    POOP_FALL_VY: 140,      // velocità iniziale verso il basso della cacca
+    POOP_AIM_VX: 90,        // spinta orizzontale max verso il player (mira)
+    POOP_PENALTY: 10,       // punti sottratti se la cacca colpisce il player
+    SPLAT_MS: 5000          // durata della macchia sulla spalla del player
+};
+
 // Documenti della "pratica" da raccogliere IN SEQUENZA: ne compare uno alla
 // volta, in un punto casuale della mappa, e solo quando viene raccolto appare
 // il successivo. `type` seleziona lo stile grafico (pixel-art in assets/documents/).

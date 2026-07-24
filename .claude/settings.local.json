@@ -5,7 +5,9 @@
       "Bash(node -e \"console.log\\(process.version\\)\")",
       "Bash(node -e ' *)",
       "Bash(node \"C:/Users/mlochi/AppData/Local/Temp/claude/C--Users-mlochi-Progetti-lingottino-github-lingottino/b981a448-7492-4063-bf2f-dfe1ba902071/scratchpad/gen_documents.js\" \"C:/Users/mlochi/Progetti/lingottino_github/lingottino/assets/documents\")",
-      "Bash(node montage.js \"C:/Users/mlochi/Progetti/lingottino_github/lingottino/assets/documents\" montage.png)"
+      "Bash(node montage.js \"C:/Users/mlochi/Progetti/lingottino_github/lingottino/assets/documents\" montage.png)",
+      "Bash(node \"C:/Users/mlochi/AppData/Local/Temp/claude/C--Users-mlochi-Progetti-lingottino-github-lingottino/b981a448-7492-4063-bf2f-dfe1ba902071/scratchpad/gen_pigeon.js\" \"C:/Users/mlochi/Progetti/lingottino_github/lingottino/assets/pigeon\")",
+      "Bash(node montage_pigeon.js \"C:/Users/mlochi/Progetti/lingottino_github/lingottino/assets/pigeon\" montage_pigeon.png)"
     ]
   }
 }

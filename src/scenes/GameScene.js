@@ -1,10 +1,11 @@
-import { GAME, PLAYER, ENEMY, PROJECTILE, SCORE, SCENES, TAUNT, DOCUMENTS, WIN_TEXT, TIMER, TIMEOUT_TEXT } from '../config/constants.js';
+import { GAME, PLAYER, ENEMY, PROJECTILE, SCORE, SCENES, TAUNT, DOCUMENTS, WIN_TEXT, TIMER, TIMEOUT_TEXT, PIGEON } from '../config/constants.js';
 import { Player } from '../entities/Player.js';
 import { Enemy } from '../entities/Enemy.js';
 import { ShooterEnemy } from '../entities/ShooterEnemy.js';
 import { Projectile } from '../entities/Projectile.js';
 import { Ingot } from '../entities/Ingot.js';
 import { Document } from '../entities/Document.js';
+import { Pigeon } from '../entities/Pigeon.js';
 import { Hud } from '../ui/Hud.js';
 
 // Scena principale di gioco: livello, player, nemici, lingotti, bombe e proiettili.
@@ -24,6 +25,8 @@ export class GameScene extends Phaser.Scene {
         this.lastDocSpot = -1;  // ultimo punto di spawn usato, per non ripeterlo
         this.timeLeftMs = TIMER.LEVEL_SECONDS * 1000; // conto alla rovescia del livello
         this.lastShownSecond = null;
+        this.playerSplat = null;      // macchia di cacca sulla spalla del player
+        this.playerSplatUntil = 0;
     }
 
     create() {
@@ -41,6 +44,7 @@ export class GameScene extends Phaser.Scene {
         this.createProjectiles();
         this.createIngots();
         this.createBombs();
+        this.createPigeon();
         this.createUI();
         this.createDocuments(); // dopo la UI: il primo spawn aggiorna l'HUD
         this.startMusic();
@@ -57,6 +61,8 @@ export class GameScene extends Phaser.Scene {
         this.enemies.children.iterate((enemy) => {
             if (enemy && enemy.active) enemy.update();
         });
+        this.pigeon.update(time, delta);
+        this.updatePlayerSplat();
     }
 
     // --- Costruzione del livello ---
@@ -173,6 +179,73 @@ export class GameScene extends Phaser.Scene {
         this.bombs = this.physics.add.group();
         this.physics.add.collider(this.bombs, this.platforms);
         this.physics.add.collider(this.player, this.bombs, this.onPlayerHitBomb, null, this);
+    }
+
+    // Piccione + le sue cacche. Il piccione è in coordinate schermo (vedi Pigeon),
+    // le cacche invece sono oggetti fisici del mondo che cadono col peso.
+    createPigeon() {
+        this.poops = this.physics.add.group();
+        this.physics.add.overlap(this.player, this.poops, this.onPlayerHitPoop, null, this);
+        this.physics.add.collider(this.poops, this.platforms, this.onPoopHitGround, null, this);
+        this.pigeon = new Pigeon(this, this.scale.width - PIGEON.MARGIN); // parte da destra
+    }
+
+    // Chiamato dal piccione: fa cadere una cacca dalla posizione (nel mondo)
+    // sotto di lui, mirata orizzontalmente verso il player.
+    spawnPoop(worldX, worldY) {
+        const poop = this.poops.create(worldX, worldY + 8, 'pigeon_poop').setDepth(400);
+        poop.body.setSize(8, 10);
+        poop.setVelocityY(PIGEON.POOP_FALL_VY);
+        const dx = this.player.x - worldX;
+        poop.setVelocityX(Phaser.Math.Clamp(dx, -PIGEON.POOP_AIM_VX, PIGEON.POOP_AIM_VX));
+    }
+
+    onPlayerHitPoop(player, poop) {
+        if (!poop.active) return;
+        this.splatDecal(poop.x, poop.y);
+        poop.destroy();
+        this.addScore(-PIGEON.POOP_PENALTY); // il punteggio può andare in negativo
+        this.markPlayerSplatted();
+    }
+
+    // Mostra (o rinnova) la macchia di cacca sulla spalla del player per qualche
+    // secondo. Gestita qui nel GameScene: segue il player ma non dipende da
+    // metodi della classe Player.
+    markPlayerSplatted() {
+        this.playerSplatUntil = this.time.now + PIGEON.SPLAT_MS;
+        if (!this.playerSplat) {
+            this.playerSplat = this.add.image(this.player.x, this.player.y, 'poop_splat').setDepth(450);
+        }
+        this.playerSplat.setVisible(true).setAlpha(1);
+        this.positionPlayerSplat();
+        // Piccolo "plop" di comparsa.
+        this.tweens.killTweensOf(this.playerSplat);
+        this.playerSplat.setScale(0.2);
+        this.tweens.add({ targets: this.playerSplat, scale: 0.55, duration: 200, ease: 'Back.easeOut' });
+    }
+
+    positionPlayerSplat() {
+        // Spalla frontale: leggermente di lato (verso dove guarda) e in alto.
+        this.playerSplat.setPosition(this.player.x + this.player.facing * 5, this.player.y - 2);
+        this.playerSplat.setFlipX(this.player.facing === -1);
+    }
+
+    updatePlayerSplat() {
+        if (!this.playerSplat || !this.playerSplat.visible) return;
+        if (this.time.now >= this.playerSplatUntil) this.playerSplat.setVisible(false);
+        else this.positionPlayerSplat();
+    }
+
+    onPoopHitGround(poop, platform) {
+        if (!poop.active) return;
+        this.splatDecal(poop.x, poop.body.top);
+        poop.destroy();
+    }
+
+    // Macchia che resta un istante dove la cacca si spiaccica, poi svanisce.
+    splatDecal(x, y) {
+        const s = this.add.image(x, y, 'poop_splat').setDepth(390).setScale(0.7);
+        this.tweens.add({ targets: s, alpha: 0, duration: 1000, delay: 500, onComplete: () => s.destroy() });
     }
 
     createUI() {
@@ -353,6 +426,7 @@ export class GameScene extends Phaser.Scene {
         this.isTimeUp = true;
         this.player.die();
         this.physics.pause();
+        if (this.playerSplat) this.playerSplat.setVisible(false);
         this.showTimeoutScreen();
     }
 
@@ -516,6 +590,7 @@ export class GameScene extends Phaser.Scene {
         this.isGameOver = true;
         this.player.die();
         this.physics.pause();
+        if (this.playerSplat) this.playerSplat.setVisible(false);
         this.gameOverText.setVisible(true);
     }
 }
