@@ -58,6 +58,18 @@ export const DOCUMENTS = [
 // Scritta di vittoria mostrata a tutto schermo quando la pratica è completa.
 export const WIN_TEXT = 'OOOOOOooooo\nCare is Gold!';
 
+// Tempo per completare la pratica. Scaduto il tempo senza aver raccolto tutti
+// i documenti, il livello è perso.
+export const TIMER = {
+    LEVEL_SECONDS: 90 // un minuto e mezzo
+};
+
+// Scritte della schermata di sconfitta per tempo scaduto.
+export const TIMEOUT_TEXT = {
+    TITLE: 'NOOOOOOOO, Care is Gold!',
+    BODY: 'Non sei riuscito a soddisfare in tempo gli obblighi necessari per diventare un collaboratore.\nRitenta'
+};
+
 // Il grido dell'uomo d'affari quando elimina un nemico.
 export const TAUNT = {
     TEXT: 'OOOOO CAREISGOLD',

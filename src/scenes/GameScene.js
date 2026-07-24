@@ -1,4 +1,4 @@
-import { GAME, PLAYER, ENEMY, PROJECTILE, SCORE, SCENES, TAUNT, DOCUMENTS, WIN_TEXT } from '../config/constants.js';
+import { GAME, PLAYER, ENEMY, PROJECTILE, SCORE, SCENES, TAUNT, DOCUMENTS, WIN_TEXT, TIMER, TIMEOUT_TEXT } from '../config/constants.js';
 import { Player } from '../entities/Player.js';
 import { Enemy } from '../entities/Enemy.js';
 import { ShooterEnemy } from '../entities/ShooterEnemy.js';
@@ -19,8 +19,11 @@ export class GameScene extends Phaser.Scene {
         this.isPaused = false;
         this.isGameOver = false;
         this.isWin = false;
+        this.isTimeUp = false;
         this.docIndex = 0;      // quanti documenti già raccolti (= indice del prossimo)
         this.lastDocSpot = -1;  // ultimo punto di spawn usato, per non ripeterlo
+        this.timeLeftMs = TIMER.LEVEL_SECONDS * 1000; // conto alla rovescia del livello
+        this.lastShownSecond = null;
     }
 
     create() {
@@ -44,8 +47,11 @@ export class GameScene extends Phaser.Scene {
         this.bindKeys();
     }
 
-    update() {
+    update(time, delta) {
         if (this.isPaused || this.isGameOver || this.isWin) return;
+
+        this.updateTimer(delta);
+        if (this.isGameOver) return; // il tempo può essere scaduto in questo frame
 
         this.player.update();
         this.enemies.children.iterate((enemy) => {
@@ -323,6 +329,89 @@ export class GameScene extends Phaser.Scene {
             fontFamily: '"Trebuchet MS", "Segoe UI", Arial, sans-serif',
             fontSize: '22px', color: '#ffffff'
         }).setOrigin(0.5).setScrollFactor(0).setDepth(2001);
+    }
+
+    // --- Timer del livello ---
+
+    // Scala il conto alla rovescia. Chiamato solo mentre si gioca davvero
+    // (update esce prima se in pausa / game over / vittoria): il tempo si ferma
+    // quando il gioco è fermo.
+    updateTimer(delta) {
+        this.timeLeftMs = Math.max(0, this.timeLeftMs - delta);
+        const sec = Math.ceil(this.timeLeftMs / 1000);
+        if (sec !== this.lastShownSecond) {
+            this.lastShownSecond = sec;
+            this.hud.setTimeLeft(sec);
+        }
+        if (this.timeLeftMs <= 0) this.loseByTimeout();
+    }
+
+    // Tempo scaduto senza aver completato la pratica: sconfitta.
+    loseByTimeout() {
+        if (this.isGameOver || this.isWin) return;
+        this.isGameOver = true;
+        this.isTimeUp = true;
+        this.player.die();
+        this.physics.pause();
+        this.showTimeoutScreen();
+    }
+
+    showTimeoutScreen() {
+        const { width, height } = this.scale;
+        this.add.rectangle(width / 2, height / 2, width, height, 0x2a0000, 0.85)
+            .setScrollFactor(0).setDepth(2000);
+
+        const title = this.add.text(width / 2, height / 2 - 90, TIMEOUT_TEXT.TITLE, {
+            fontFamily: '"Trebuchet MS", "Segoe UI", Arial, sans-serif',
+            fontSize: '56px', fontStyle: 'bold', color: '#ff6a6a',
+            stroke: '#3a0000', strokeThickness: 12, align: 'center'
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(2001);
+        title.setShadow(0, 6, 'rgba(0,0,0,0.5)', 8, true, true);
+
+        title.setScale(0.3);
+        this.tweens.add({ targets: title, scale: 1, duration: 600, ease: 'Back.easeOut' });
+
+        this.add.text(width / 2, height / 2 + 10, TIMEOUT_TEXT.BODY, {
+            fontFamily: '"Trebuchet MS", "Segoe UI", Arial, sans-serif',
+            fontSize: '20px', color: '#ffffff', align: 'center', lineSpacing: 10,
+            wordWrap: { width: width - 140 }
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(2001);
+
+        // Dopo un secondo: i due bottoni per scegliere come proseguire.
+        this.time.delayedCall(1000, () => this.showTimeoutButtons(), null, this);
+    }
+
+    showTimeoutButtons() {
+        const { width, height } = this.scale;
+        const y = height / 2 + 130;
+        this.makeButton(width / 2 - 130, y, 'Menu iniziale', () => {
+            this.scene.start(SCENES.MENU);
+        });
+        this.makeButton(width / 2 + 130, y, 'Ricomincia livello', () => {
+            this.scene.restart();
+        });
+    }
+
+    // Bottone cliccabile (rettangolo + testo) fissato alla camera.
+    makeButton(x, y, label, onClick) {
+        const w = 230, h = 54;
+        const bg = this.add.rectangle(x, y, w, h, 0x2a2f3a, 0.96)
+            .setStrokeStyle(3, 0xffe14d)
+            .setScrollFactor(0).setDepth(2002)
+            .setInteractive({ useHandCursor: true });
+
+        const txt = this.add.text(x, y, label, {
+            fontFamily: '"Trebuchet MS", "Segoe UI", Arial, sans-serif',
+            fontSize: '20px', fontStyle: 'bold', color: '#ffe14d'
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(2003);
+
+        bg.on('pointerover', () => bg.setFillStyle(0x3a4150, 1));
+        bg.on('pointerout', () => bg.setFillStyle(0x2a2f3a, 0.96));
+        bg.on('pointerdown', onClick);
+
+        // Comparsa morbida.
+        [bg, txt].forEach((o) => { o.setScale(0.6); this.tweens.add({ targets: o, scale: 1, duration: 250, ease: 'Back.easeOut' }); });
+        return { bg, txt };
     }
 
     spawnBomb() {

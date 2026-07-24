@@ -1,6 +1,6 @@
 import { HeartsDisplay } from './HeartsDisplay.js';
 import { AmmoDisplay } from './AmmoDisplay.js';
-import { DOCUMENTS } from '../config/constants.js';
+import { DOCUMENTS, TIMER } from '../config/constants.js';
 
 // HUD di gioco: punteggio (stile moderno con icona e bordo), vite a cuori e
 // munizioni. Tutto fissato alla camera (scrollFactor 0) e sopra la scena.
@@ -60,6 +60,39 @@ export class Hud {
         this.nextIcon = scene.add.image(rx, 88, '__DEFAULT')
             .setOrigin(1, 0.5).setScrollFactor(0).setDepth(depth).setVisible(false);
         this.nextIcon.setDisplaySize(30, 30);
+
+        // --- Conto alla rovescia (sotto l'indicatore documenti) ---
+        this.warning = false; // true quando il tempo sta per scadere
+        this.timeText = scene.add.text(rx, 116, '', {
+            fontFamily: '"Trebuchet MS", "Segoe UI", Arial, sans-serif',
+            fontSize: '30px', fontStyle: 'bold', color: '#ffffff',
+            stroke: '#3a2a00', strokeThickness: 6
+        }).setOrigin(1, 0).setScrollFactor(0).setDepth(depth);
+        this.timeText.setShadow(2, 3, 'rgba(0,0,0,0.45)', 3, true, true);
+        this.setTimeLeft(TIMER.LEVEL_SECONDS);
+    }
+
+    // Aggiorna il conto alla rovescia (secondi interi). Sotto i 15 secondi la
+    // scritta diventa rossa e pulsa per dare urgenza.
+    setTimeLeft(seconds) {
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        this.timeText.setText(`TEMPO  ${m}:${String(s).padStart(2, '0')}`);
+
+        const warn = seconds <= 15;
+        if (warn !== this.warning) {
+            this.warning = warn;
+            this.timeText.setColor(warn ? '#ff5a5a' : '#ffffff');
+            this.scene.tweens.killTweensOf(this.timeText);
+            this.timeText.setScale(1);
+            if (warn) {
+                this.scene.tweens.add({
+                    targets: this.timeText,
+                    scale: { from: 1, to: 1.12 },
+                    duration: 500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
+                });
+            }
+        }
     }
 
     // Aggiorna il contatore dei documenti raccolti, con un piccolo "pop".
@@ -120,5 +153,6 @@ export class Hud {
         this.nextLabel.destroy();
         this.nextName.destroy();
         this.nextIcon.destroy();
+        this.timeText.destroy();
     }
 }
