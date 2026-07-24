@@ -29,6 +29,8 @@ export class Player extends Entity {
         this.lastGroundedAt = 0;
         this.lastJumpPressedAt = -Infinity;
         this.nextFireAt = 0;
+        this.fireHeldSince = 0;   // istante di inizio pressione continua (0 = non preme)
+        this.tiredUntil = 0;      // finché now < tiredUntil il player è "stanco" e non spara
         this.throwAnimUntil = 0;
         this.invulnerable = false;
         this.isDead = false;
@@ -92,7 +94,21 @@ export class Player extends Entity {
         }
 
         // --- Fuoco (arma base, munizioni illimitate) ---
-        if (this.isFireDown() && now >= this.nextFireAt) {
+        // Tenendo premuto per FIRE_MAX_HOLD_MS consecutivi il player si stanca e
+        // per FIRE_TIRED_MS non può sparare. Rilasciando prima, nessuna penalità.
+        const fireDown = this.isFireDown();
+        if (!fireDown) {
+            this.fireHeldSince = 0; // rilasciato: azzera il conteggio -> niente penalità
+        } else if (now >= this.tiredUntil) {
+            // Preme e non è (più) stanco: conta la pressione continua.
+            if (this.fireHeldSince === 0) this.fireHeldSince = now;
+            else if (now - this.fireHeldSince >= PLAYER.FIRE_MAX_HOLD_MS) {
+                this.tiredUntil = now + PLAYER.FIRE_TIRED_MS; // stanchezza!
+                this.fireHeldSince = 0;
+            }
+        }
+
+        if (fireDown && now >= this.tiredUntil && now >= this.nextFireAt) {
             this.scene.firePlayerBullet(this.x + this.facing * 14, this.y, this.facing);
             this.nextFireAt = now + PLAYER.FIRE_COOLDOWN_MS;
             this.throwAnimUntil = now + 220;

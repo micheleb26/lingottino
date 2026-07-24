@@ -17,7 +17,9 @@ export const PLAYER = {
     COYOTE_MS: 100,         // tolleranza salto dopo aver lasciato il suolo
     JUMP_BUFFER_MS: 120,    // memorizza la pressione del salto poco prima di atterrare
     INVULNERABLE_MS: 1000,  // invulnerabilità dopo aver perso una vita
-    FIRE_COOLDOWN_MS: 350   // cadenza dell'arma base (munizioni illimitate)
+    FIRE_COOLDOWN_MS: 350,  // cadenza dell'arma base (munizioni illimitate)
+    FIRE_MAX_HOLD_MS: 3000, // fuoco continuo max: oltre, il player si stanca
+    FIRE_TIRED_MS: 3000     // durata dello "stanco": non può sparare
 };
 
 export const ENEMY = {
