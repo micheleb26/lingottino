@@ -45,6 +45,7 @@ export class GameScene extends Phaser.Scene {
         this.createIngots();
         this.createBombs();
         this.createPigeon();
+        this.createSecretBlock();
         this.createUI();
         this.createDocuments(); // dopo la UI: il primo spawn aggiorna l'HUD
         this.startMusic();
@@ -63,6 +64,8 @@ export class GameScene extends Phaser.Scene {
         });
         this.pigeon.update(time, delta);
         this.updatePlayerSplat();
+        this.checkSecretHit();
+        this.updateCheckPickup();
     }
 
     // --- Costruzione del livello ---
@@ -188,6 +191,112 @@ export class GameScene extends Phaser.Scene {
         this.physics.add.overlap(this.player, this.poops, this.onPlayerHitPoop, null, this);
         this.physics.add.collider(this.poops, this.platforms, this.onPoopHitGround, null, this);
         this.pigeon = new Pigeon(this, this.scale.width - PIGEON.MARGIN); // parte da destra
+    }
+
+    // Blocco SEGRETO alla Super Mario: un blocco nascosto (invisibile e
+    // intangibile) in mezzo alle piattaforme sospese. Non si vede finché il
+    // player non ci salta dentro DAL BASSO: solo allora si materializza come
+    // blocco solido e fa spuntare sopra di sé un assegno da raccogliere.
+    createSecretBlock() {
+        this.secretUsed = false;
+        this.check = null;
+        this.secretBlocks = this.physics.add.staticGroup();
+        // In aria sopra la piattaforma sospesa a x=1850: a portata di un salto
+        // pieno fatto stando su quella piattaforma (verificato con margine comodo).
+        this.secretBlock = this.secretBlocks.create(1850, 400, 'secret_block');
+        this.secretBlock.setVisible(false);     // segreto: non si vede
+        this.secretBlock.body.enable = false;   // e non è solido finché non lo scopri
+        // Collider senza callback: dà solidità SOLO dopo che è stato rivelato.
+        this.physics.add.collider(this.player, this.secretBlocks);
+    }
+
+    // Ogni frame (mentre si gioca): scopri il blocco se il player, salendo, gli
+    // entra dentro con la testa. È l'unico modo per attivarlo (come i blocchi
+    // nascosti di Mario: dal basso, in salita).
+    checkSecretHit() {
+        if (this.secretUsed) return;
+        const b = this.secretBlock;
+        const p = this.player.body;
+        if (p.velocity.y >= 0) return; // solo in salita
+        if (Math.abs(p.center.x - b.x) < 16 + p.halfWidth &&
+            Math.abs(p.center.y - b.y) < 16 + p.halfHeight) {
+            this.revealSecretBlock();
+        }
+    }
+
+    revealSecretBlock() {
+        this.secretUsed = true;
+        const b = this.secretBlock;
+        b.setVisible(true);
+        b.body.enable = true; // ora è solido: il collider respinge il player in giù (bonk)
+        this.player.setVelocityY(80);
+
+        // Piccolo "pop" di comparsa (cosmetico: se il tween non gira resta a 1).
+        b.setScale(1);
+        this.tweens.add({ targets: b, scale: { from: 1.2, to: 1 }, duration: 220, ease: 'Back.easeOut' });
+
+        this.revealCheck(b);
+    }
+
+    // L'assegno è un'immagine semplice (non fisica): la muovo con i tween e la
+    // raccolta la controllo a mano nell'update, così la fisica non "combatte"
+    // il movimento di salita/ondeggio.
+    updateCheckPickup() {
+        const c = this.check;
+        if (!c || !c.active) return;
+        if (Math.abs(this.player.x - c.x) < 28 && Math.abs(this.player.y - c.y) < 24) {
+            this.onCollectCheck();
+        }
+    }
+
+    // L'assegno compare SOPRA il blocco (posizione di riposo) ed è raccoglibile.
+    // La breve salita e l'ondeggio sono solo decorativi: anche senza tween
+    // l'assegno resta comunque piazzato sopra il blocco.
+    revealCheck(block) {
+        const restY = block.y - 42;
+        this.check = this.add.image(block.x, restY, 'check').setDepth(6);
+
+        // Emerge dal blocco (parte poco sotto la posizione di riposo).
+        this.check.y = restY + 14;
+        this.tweens.add({
+            targets: this.check, y: restY, duration: 300, ease: 'Back.easeOut',
+            onComplete: () => {
+                if (!this.check || !this.check.active) return;
+                this.tweens.add({
+                    targets: this.check, y: restY - 4,
+                    duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
+                });
+            }
+        });
+    }
+
+    onCollectCheck() {
+        const check = this.check;
+        if (!check || !check.active) return;
+        const x = check.x, y = check.y;
+        check.destroy();            // niente doppie raccolte
+        this.check = null;
+        this.addScore(SCORE.CHECK);
+
+        // Effetto raccolta: assegno "fantasma" che sale e svanisce + "+200".
+        const ghost = this.add.image(x, y, 'check').setDepth(400);
+        this.tweens.add({
+            targets: ghost, y: y - 30, alpha: 0, scale: 1.3,
+            duration: 450, ease: 'Quad.easeOut', onComplete: () => ghost.destroy()
+        });
+        this.floatText(x, y - 10, '+' + SCORE.CHECK);
+    }
+
+    floatText(x, y, str) {
+        const t = this.add.text(x, y, str, {
+            fontFamily: '"Trebuchet MS", "Segoe UI", Arial, sans-serif',
+            fontSize: '22px', fontStyle: 'bold', color: '#ffe14d',
+            stroke: '#3a2a00', strokeThickness: 5
+        }).setOrigin(0.5).setDepth(401);
+        this.tweens.add({
+            targets: t, y: y - 40, alpha: { from: 1, to: 0 },
+            duration: 800, ease: 'Quad.easeOut', onComplete: () => t.destroy()
+        });
     }
 
     // Chiamato dal piccione: fa cadere una cacca dalla posizione (nel mondo)

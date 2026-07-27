@@ -39,7 +39,8 @@ export const PROJECTILE = {
 
 export const SCORE = {
     INGOT: 10,
-    DOC: 100          // punti per ogni documento della pratica raccolto
+    DOC: 100,         // punti per ogni documento della pratica raccolto
+    CHECK: 200        // bonus dell'assegno nascosto nel blocco segreto
 };
 
 // Piccione: vola avanti e indietro a un'altezza fissa dello schermo e, quando
