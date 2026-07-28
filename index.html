@@ -1,7 +1,41 @@
 <!DOCTYPE html>
-<html>
+<html lang="it">
 <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Lingottino</title>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser-arcade-physics.min.js"></script>
+    <style>
+        html, body { height: 100%; margin: 0; }
+
+        /* Centro la schermata di gioco nella finestra del browser. */
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #14110c; /* fondo scuro sotto la foglia d'oro */
+        }
+
+        /* Sfondo a foglia d'oro della PAGINA (non del gioco), ripetuto e
+           sbiadito via CSS (opacity) per non disturbare il gioco. */
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background: url("assets/ui/gold_leaf_bg.png") repeat;
+            background-size: 256px 256px;
+            opacity: 0.18;         /* sbiadito */
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        /* Il canvas del gioco, staccato dallo sfondo con una leggera ombra. */
+        canvas {
+            display: block;
+            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
+        }
+    </style>
 </head>
 <body>
     <script type="module" src="src/main.js"></script>

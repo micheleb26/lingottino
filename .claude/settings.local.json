@@ -10,7 +10,8 @@
       "Bash(node montage_pigeon.js \"C:/Users/mlochi/Progetti/lingottino_github/lingottino/assets/pigeon\" montage_pigeon.png)",
       "Bash(node \"C:/Users/mlochi/AppData/Local/Temp/claude/C--Users-mlochi-Progetti-lingottino-github-lingottino/b981a448-7492-4063-bf2f-dfe1ba902071/scratchpad/gen_secret.js\" \"C:/Users/mlochi/Progetti/lingottino_github/lingottino/assets/secret\")",
       "Bash(node \"C:/Users/mlochi/AppData/Local/Temp/claude/C--Users-mlochi-Progetti-lingottino-github-lingottino/b981a448-7492-4063-bf2f-dfe1ba902071/scratchpad/gen_block.js\" \"C:/Users/mlochi/Progetti/lingottino_github/lingottino/assets/secret\")",
-      "Bash(node \"C:/Users/mlochi/AppData/Local/Temp/claude/C--Users-mlochi-Progetti-lingottino-github-lingottino/b981a448-7492-4063-bf2f-dfe1ba902071/scratchpad/montage_block.js\" \"C:/Users/mlochi/Progetti/lingottino_github/lingottino/assets/secret\" \"C:/Users/mlochi/AppData/Local/Temp/claude/C--Users-mlochi-Progetti-lingottino-github-lingottino/b981a448-7492-4063-bf2f-dfe1ba902071/scratchpad/block_preview.png\")"
+      "Bash(node \"C:/Users/mlochi/AppData/Local/Temp/claude/C--Users-mlochi-Progetti-lingottino-github-lingottino/b981a448-7492-4063-bf2f-dfe1ba902071/scratchpad/montage_block.js\" \"C:/Users/mlochi/Progetti/lingottino_github/lingottino/assets/secret\" \"C:/Users/mlochi/AppData/Local/Temp/claude/C--Users-mlochi-Progetti-lingottino-github-lingottino/b981a448-7492-4063-bf2f-dfe1ba902071/scratchpad/block_preview.png\")",
+      "Bash(node \"C:/Users/mlochi/AppData/Local/Temp/claude/C--Users-mlochi-Progetti-lingottino-github-lingottino/b981a448-7492-4063-bf2f-dfe1ba902071/scratchpad/gen_goldleaf.js\" \"C:/Users/mlochi/Progetti/lingottino_github/lingottino/assets/ui/gold_leaf_bg.png\")"
     ]
   }
 }
