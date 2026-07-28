@@ -57,10 +57,10 @@ export class BootScene extends Phaser.Scene {
         this.load.image('pigeon_poop', 'assets/pigeon/pigeon_poop.png');
         this.load.image('poop_splat', 'assets/pigeon/poop_splat.png');
 
-        // Blocco segreto (mattone d'oro alla Mario) + assegno bonus.
-        this.load.image('secret_block', 'assets/secret/secret_block.png');
-        this.load.image('secret_block_used', 'assets/secret/secret_block_used.png');
-        this.load.image('check', 'assets/secret/check.png');
+        // Mattone d'oro liscio: unico blocco 32x32 che compone TUTTE le
+        // piattaforme (pavimento + sospese). Uno di questi è il blocco segreto.
+        this.load.image('block', 'assets/secret/block.png');
+        this.load.image('check', 'assets/secret/check.png'); // assegno bonus
 
         // Audio
         this.load.audio('mus_bg', s + 'music.mp3');

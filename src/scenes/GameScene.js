@@ -45,7 +45,6 @@ export class GameScene extends Phaser.Scene {
         this.createIngots();
         this.createBombs();
         this.createPigeon();
-        this.createSecretBlock();
         this.createUI();
         this.createDocuments(); // dopo la UI: il primo spawn aggiorna l'HUD
         this.startMusic();
@@ -71,19 +70,41 @@ export class GameScene extends Phaser.Scene {
     // --- Costruzione del livello ---
 
     createPlatforms() {
+        const B = GAME.BLOCK; // 32
         this.platforms = this.physics.add.staticGroup();
 
-        // Pavimento continuo in mattoni d'oro (400x32).
-        for (let x = 0; x < GAME.WORLD_WIDTH; x += 400) {
-            this.platforms.create(x, GAME.HEIGHT - 32, 'ground')
-                .setOrigin(0, 0)
-                .refreshBody();
+        // Pavimento: una fila di blocchi lungo tutto il mondo (in futuro si
+        // possono saltare dei blocchi per creare buchi in cui cadere).
+        for (let x = 0; x < GAME.WORLD_WIDTH; x += B) {
+            this.addBlock(x, GAME.HEIGHT - B);
         }
 
-        // Piattaforme sospese: stessa muratura, ma con bordi rifiniti.
-        [[500, 470], [1050, 390], [1550, 310], [1850, 470]].forEach(([x, y]) => {
-            this.platforms.create(x, y, 'gold_platform');
+        // Piattaforme sospese: righe di blocchi. Mantengono ~posizioni e
+        // lunghezze delle vecchie piattaforme (400px ≈ 12 blocchi da 32).
+        // { x: bordo sinistro, y: bordo superiore, n: numero di blocchi }.
+        this.suspended = [
+            { x: 308,  y: 454, n: 12 }, // ~ (500,470)
+            { x: 858,  y: 374, n: 12 }, // ~ (1050,390) — piattaforma CENTRALE, ha il blocco segreto
+            { x: 1358, y: 294, n: 12 }, // ~ (1550,310)
+            { x: 1658, y: 454, n: 12 }  // ~ (1850,470)
+        ];
+        this.suspended.forEach((p) => {
+            for (let i = 0; i < p.n; i++) this.addBlock(p.x + i * B, p.y);
         });
+
+        // Il blocco SEGRETO è un blocco IDENTICO agli altri, scelto in mezzo
+        // alla piattaforma centrale: si raggiunge saltando dal terreno sottostante.
+        this.secretUsed = false;
+        this.check = null;
+        const mid = this.suspended[1];
+        const secretX = mid.x + 6 * B; // ~ x=1050, centro della fila
+        this.secretBlock = this.addBlock(secretX, mid.y);
+    }
+
+    // Crea un singolo blocco statico 32x32 (origine in alto a sinistra) e lo
+    // restituisce.
+    addBlock(x, y) {
+        return this.platforms.create(x, y, 'block').setOrigin(0, 0).refreshBody();
     }
 
     createPlayer() {
@@ -193,49 +214,34 @@ export class GameScene extends Phaser.Scene {
         this.pigeon = new Pigeon(this, this.scale.width - PIGEON.MARGIN); // parte da destra
     }
 
-    // Blocco SEGRETO alla Super Mario: un blocco nascosto (invisibile e
-    // intangibile) in mezzo alle piattaforme sospese. Non si vede finché il
-    // player non ci salta dentro DAL BASSO: solo allora si materializza come
-    // blocco solido e fa spuntare sopra di sé un assegno da raccogliere.
-    createSecretBlock() {
-        this.secretUsed = false;
-        this.check = null;
-        this.secretBlocks = this.physics.add.staticGroup();
-        // In aria sopra la piattaforma sospesa a x=1850: a portata di un salto
-        // pieno fatto stando su quella piattaforma (verificato con margine comodo).
-        this.secretBlock = this.secretBlocks.create(1850, 400, 'secret_block');
-        this.secretBlock.setVisible(false);     // segreto: non si vede
-        this.secretBlock.body.enable = false;   // e non è solido finché non lo scopri
-        // Collider senza callback: dà solidità SOLO dopo che è stato rivelato.
-        this.physics.add.collider(this.player, this.secretBlocks);
-    }
-
-    // Ogni frame (mentre si gioca): scopri il blocco se il player, salendo, gli
-    // entra dentro con la testa. È l'unico modo per attivarlo (come i blocchi
-    // nascosti di Mario: dal basso, in salita).
+    // Colpo "alla Mario": ogni frame controllo se il player ha appena sbattuto
+    // la testa (blocked/touching up) proprio sotto il blocco segreto. Il blocco
+    // resta un normale membro solido di this.platforms (così i nemici ci
+    // camminano sopra); la rilevazione qui evita conflitti tra collider.
     checkSecretHit() {
         if (this.secretUsed) return;
-        const b = this.secretBlock;
         const p = this.player.body;
-        if (p.velocity.y >= 0) return; // solo in salita
-        if (Math.abs(p.center.x - b.x) < 16 + p.halfWidth &&
-            Math.abs(p.center.y - b.y) < 16 + p.halfHeight) {
-            this.revealSecretBlock();
+        if (!(p.blocked.up || p.touching.up)) return;
+        const b = this.secretBlock;
+        if (p.center.x > b.x && p.center.x < b.x + GAME.BLOCK) {
+            this.secretUsed = true;
+            this.animateSecretHit(b);
+            this.revealCheck(b);
         }
     }
 
-    revealSecretBlock() {
-        this.secretUsed = true;
-        const b = this.secretBlock;
-        b.setVisible(true);
-        b.body.enable = true; // ora è solido: il collider respinge il player in giù (bonk)
-        this.player.setVelocityY(80);
+    // Animazione della botta: sobbalzo del blocco + lampo bianco.
+    animateSecretHit(block) {
+        const y0 = block.y;
+        this.tweens.add({ targets: block, y: y0 - 8, duration: 90, yoyo: true, ease: 'Quad.easeOut' });
 
-        // Piccolo "pop" di comparsa (cosmetico: se il tween non gira resta a 1).
-        b.setScale(1);
-        this.tweens.add({ targets: b, scale: { from: 1.2, to: 1 }, duration: 220, ease: 'Back.easeOut' });
-
-        this.revealCheck(b);
+        // Lampo bianco che sfuma (stesso blocco, tinta piena bianca).
+        const flash = this.add.image(block.x, block.y, 'block')
+            .setOrigin(0, 0).setDepth(block.depth + 1).setTintFill(0xffffff).setAlpha(0.85);
+        this.tweens.add({
+            targets: flash, y: y0 - 8, alpha: 0, duration: 260, ease: 'Quad.easeOut',
+            onComplete: () => flash.destroy()
+        });
     }
 
     // L'assegno è un'immagine semplice (non fisica): la muovo con i tween e la
@@ -253,8 +259,11 @@ export class GameScene extends Phaser.Scene {
     // La breve salita e l'ondeggio sono solo decorativi: anche senza tween
     // l'assegno resta comunque piazzato sopra il blocco.
     revealCheck(block) {
-        const restY = block.y - 42;
-        this.check = this.add.image(block.x, restY, 'check').setDepth(6);
+        // Il blocco ha origine in alto a sinistra: centro X = block.x + 16,
+        // e l'assegno galleggia sopra la superficie della piattaforma.
+        const cx = block.x + GAME.BLOCK / 2;
+        const restY = block.y - 26;
+        this.check = this.add.image(cx, restY, 'check').setDepth(6);
 
         // Emerge dal blocco (parte poco sotto la posizione di riposo).
         this.check.y = restY + 14;

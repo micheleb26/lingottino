@@ -5,7 +5,8 @@ export const GAME = {
     HEIGHT: 600,
     WORLD_WIDTH: 2000,
     GRAVITY_Y: 600,
-    START_LIVES: 3
+    START_LIVES: 3,
+    BLOCK: 32        // lato del blocco base che compone tutte le piattaforme
 };
 
 export const PLAYER = {
