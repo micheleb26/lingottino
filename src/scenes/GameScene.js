@@ -1,4 +1,4 @@
-import { GAME, PLAYER, ENEMY, PROJECTILE, SCORE, SCENES, TAUNT, DOCUMENTS, WIN_TEXT, TIMER, TIMEOUT_TEXT, PIGEON } from '../config/constants.js';
+import { GAME, PLAYER, ENEMY, PROJECTILE, SCORE, SCENES, TAUNT, WIN_TEXT, TIMER, TIMEOUT_TEXT, DEATH_TEXT, PIGEON, LEVELS, SPRAY, STUN } from '../config/constants.js';
 import { Player } from '../entities/Player.js';
 import { Enemy } from '../entities/Enemy.js';
 import { ShooterEnemy } from '../entities/ShooterEnemy.js';
@@ -14,29 +14,35 @@ export class GameScene extends Phaser.Scene {
         super({ key: SCENES.GAME });
     }
 
-    init() {
+    init(data) {
+        this.level = (data && data.level) || 1;
+        this.cfg = LEVELS[this.level] || LEVELS[1];
+
         this.score = 0;
         this.lives = GAME.START_LIVES;
         this.isPaused = false;
         this.isGameOver = false;
         this.isWin = false;
         this.isTimeUp = false;
-        this.docIndex = 0;      // quanti documenti già raccolti (= indice del prossimo)
-        this.lastDocSpot = -1;  // ultimo punto di spawn usato, per non ripeterlo
+        this.docIndex = 0;       // quanti oggetti già raccolti (= indice del prossimo)
+        this.lastDocX = -999;    // ultima x di spawn, per non ripeterla
         this.timeLeftMs = TIMER.LEVEL_SECONDS * 1000; // conto alla rovescia del livello
         this.lastShownSecond = null;
-        this.playerSplat = null;      // macchia di cacca sulla spalla del player
+        this.playerSplat = null; // macchia di cacca sulla spalla del player
         this.playerSplatUntil = 0;
+        this.collectibleSet = this.cfg.collectibles;
+        this.checks = [];        // assegni bonus attivi
+        this.sprayNextAt = 0;
     }
 
     create() {
-        const { WORLD_WIDTH, HEIGHT } = GAME;
+        const W = this.cfg.worldWidth, H = GAME.HEIGHT;
 
-        this.physics.world.setBounds(0, 0, WORLD_WIDTH, HEIGHT);
-        this.cameras.main.setBounds(0, 0, WORLD_WIDTH, HEIGHT);
+        this.physics.world.setBounds(0, 0, W, H);
+        this.cameras.main.setBounds(0, 0, W, H);
 
         // Sfondo: un solo tileSprite invece di tante immagini ripetute.
-        this.add.tileSprite(0, 0, WORLD_WIDTH, HEIGHT, 'sky').setOrigin(0, 0);
+        this.add.tileSprite(0, 0, W, H, 'sky').setOrigin(0, 0);
 
         this.createPlatforms();
         this.createPlayer();
@@ -45,8 +51,9 @@ export class GameScene extends Phaser.Scene {
         this.createIngots();
         this.createBombs();
         this.createPigeon();
+        this.createSpray();
         this.createUI();
-        this.createDocuments(); // dopo la UI: il primo spawn aggiorna l'HUD
+        this.createCollectibles(); // dopo la UI: il primo spawn aggiorna l'HUD
         this.startMusic();
         this.bindKeys();
     }
@@ -65,6 +72,7 @@ export class GameScene extends Phaser.Scene {
         this.updatePlayerSplat();
         this.checkSecretHit();
         this.updateCheckPickup();
+        this.checkSpray();
     }
 
     // --- Costruzione del livello ---
@@ -73,32 +81,21 @@ export class GameScene extends Phaser.Scene {
         const B = GAME.BLOCK; // 32
         this.platforms = this.physics.add.staticGroup();
 
-        // Pavimento: una fila di blocchi lungo tutto il mondo (in futuro si
-        // possono saltare dei blocchi per creare buchi in cui cadere).
-        for (let x = 0; x < GAME.WORLD_WIDTH; x += B) {
+        // Pavimento: una fila di blocchi lungo tutto il mondo.
+        for (let x = 0; x < this.cfg.worldWidth; x += B) {
             this.addBlock(x, GAME.HEIGHT - B);
         }
 
-        // Piattaforme sospese: righe di blocchi. Mantengono ~posizioni e
-        // lunghezze delle vecchie piattaforme (400px ≈ 12 blocchi da 32).
-        // { x: bordo sinistro, y: bordo superiore, n: numero di blocchi }.
-        this.suspended = [
-            { x: 308,  y: 454, n: 12 }, // ~ (500,470)
-            { x: 858,  y: 374, n: 12 }, // ~ (1050,390) — piattaforma CENTRALE, ha il blocco segreto
-            { x: 1358, y: 294, n: 12 }, // ~ (1550,310)
-            { x: 1658, y: 454, n: 12 }  // ~ (1850,470)
-        ];
-        this.suspended.forEach((p) => {
+        // Piattaforme sospese del livello: righe di blocchi.
+        this.cfg.platforms.forEach((p) => {
             for (let i = 0; i < p.n; i++) this.addBlock(p.x + i * B, p.y);
         });
 
-        // Il blocco SEGRETO è un blocco IDENTICO agli altri, scelto in mezzo
-        // alla piattaforma centrale: si raggiunge saltando dal terreno sottostante.
-        this.secretUsed = false;
-        this.check = null;
-        const mid = this.suspended[1];
-        const secretX = mid.x + 6 * B; // ~ x=1050, centro della fila
-        this.secretBlock = this.addBlock(secretX, mid.y);
+        // Blocchi SEGRETI: blocchi IDENTICI agli altri (tessere di piattaforme),
+        // ognuno con il proprio bonus. Si scoprono colpendoli dal basso.
+        this.secretBlocks = this.cfg.secretBlocks.map((s) => ({
+            block: this.addBlock(s.x, s.y), bonus: s.bonus, used: false
+        }));
     }
 
     // Crea un singolo blocco statico 32x32 (origine in alto a sinistra) e lo
@@ -118,19 +115,13 @@ export class GameScene extends Phaser.Scene {
     createEnemies() {
         this.enemies = this.physics.add.group();
 
-        // Camminatori (dude): sulle piattaforme si girano ai bordi;
-        // sul pavimento usano limiti di pattuglia espliciti.
-        [
-            { x: 500, y: 420 },
-            { x: 1050, y: 340 },
-            { x: 1700, y: 500, patrolMin: 1600, patrolMax: 1950 }
-        ].forEach((d) => this.enemies.add(new Enemy(this, d.x, d.y, { prefix: 'dude', ...d })));
-
-        // Tiratori (owlet).
-        [
-            { x: 800, y: 500, patrolMin: 650, patrolMax: 1050 },
-            { x: 1550, y: 270 }
-        ].forEach((d) => this.enemies.add(new ShooterEnemy(this, d.x, d.y, d)));
+        // Nemici del livello: 'owlet' = tiratore, tutti gli altri = camminatore.
+        this.cfg.enemies.forEach((d) => {
+            const enemy = d.type === 'owlet'
+                ? new ShooterEnemy(this, d.x, d.y, d)
+                : new Enemy(this, d.x, d.y, { prefix: 'dude', ...d });
+            this.enemies.add(enemy);
+        });
 
         this.physics.add.collider(this.enemies, this.platforms);
         this.physics.add.overlap(this.player, this.enemies, this.onPlayerHitEnemy, null, this);
@@ -149,7 +140,7 @@ export class GameScene extends Phaser.Scene {
     createIngots() {
         this.ingots = this.physics.add.group();
 
-        for (let x = 100; x < GAME.WORLD_WIDTH; x += 150) {
+        for (let x = 100; x < this.cfg.worldWidth; x += 150) {
             const ingot = new Ingot(this, x, 0);
             this.ingots.add(ingot);
             // Configura il corpo DOPO l'add (il gruppo reinizializza il corpo).
@@ -161,37 +152,30 @@ export class GameScene extends Phaser.Scene {
         this.physics.add.overlap(this.player, this.ingots, this.onCollectIngot, null, this);
     }
 
-    // Documenti della pratica: uno alla volta, in sequenza. Il gruppo esiste
-    // per gestire in un colpo solo collisioni e overlap; conterrà al più un
-    // documento attivo per volta.
-    createDocuments() {
+    // Oggetti da raccogliere (documenti nel liv.1, contratti nel liv.2): uno
+    // alla volta, in sequenza; il successivo appare quando si raccoglie il
+    // precedente, in una posizione X casuale della mappa.
+    createCollectibles() {
         this.documents = this.physics.add.group();
         this.physics.add.collider(this.documents, this.platforms);
         this.physics.add.overlap(this.player, this.documents, this.onCollectDocument, null, this);
-        this.spawnNextDocument();
+        this.spawnNextCollectible();
     }
 
-    // Punti di comparsa possibili: alcuni a terra (cadono fino al pavimento),
-    // altri appena sopra le piattaforme sospese -> altezze e posizioni varie.
-    docSpots() {
-        return [
-            { x: 260, y: 0 }, { x: 720, y: 0 }, { x: 1250, y: 0 }, { x: 1980, y: 0 },
-            { x: 500, y: 430 }, { x: 1050, y: 350 }, { x: 1550, y: 270 }, { x: 1850, y: 430 }
-        ];
-    }
-
-    spawnNextDocument() {
-        const def = DOCUMENTS[this.docIndex];
+    spawnNextCollectible() {
+        const def = this.collectibleSet[this.docIndex];
         if (!def) return; // pratica completa
 
-        // Scegli un punto casuale diverso dall'ultimo usato.
-        const spots = this.docSpots();
-        let i = Phaser.Math.Between(0, spots.length - 1);
-        if (spots.length > 1) while (i === this.lastDocSpot) i = Phaser.Math.Between(0, spots.length - 1);
-        this.lastDocSpot = i;
-        const spot = spots[i];
+        // X casuale, lontana dal player e dall'ultima usata; cade dall'alto.
+        const W = this.cfg.worldWidth;
+        let x = Phaser.Math.Between(120, W - 120);
+        for (let tries = 0; tries < 20; tries++) {
+            if (Math.abs(x - this.player.x) > 220 && Math.abs(x - this.lastDocX) > 200) break;
+            x = Phaser.Math.Between(120, W - 120);
+        }
+        this.lastDocX = x;
 
-        const doc = new Document(this, spot.x, spot.y, def);
+        const doc = new Document(this, x, 0, def);
         this.documents.add(doc);
         doc.setCollideWorldBounds(true);
         doc.setBounceY(0.2);
@@ -219,14 +203,17 @@ export class GameScene extends Phaser.Scene {
     // resta un normale membro solido di this.platforms (così i nemici ci
     // camminano sopra); la rilevazione qui evita conflitti tra collider.
     checkSecretHit() {
-        if (this.secretUsed) return;
         const p = this.player.body;
         if (!(p.blocked.up || p.touching.up)) return;
-        const b = this.secretBlock;
-        if (p.center.x > b.x && p.center.x < b.x + GAME.BLOCK) {
-            this.secretUsed = true;
-            this.animateSecretHit(b);
-            this.revealCheck(b);
+        for (const s of this.secretBlocks) {
+            if (s.used) continue;
+            const b = s.block;
+            if (p.center.x > b.x && p.center.x < b.x + GAME.BLOCK) {
+                s.used = true;
+                this.animateSecretHit(b);
+                this.revealCheck(b, s.bonus);
+                break;
+            }
         }
     }
 
@@ -244,56 +231,52 @@ export class GameScene extends Phaser.Scene {
         });
     }
 
-    // L'assegno è un'immagine semplice (non fisica): la muovo con i tween e la
-    // raccolta la controllo a mano nell'update, così la fisica non "combatte"
-    // il movimento di salita/ondeggio.
+    // Gli assegni sono immagini semplici (non fisiche): li muovo con i tween e
+    // la raccolta la controllo a mano, così la fisica non combatte l'ondeggio.
     updateCheckPickup() {
-        const c = this.check;
-        if (!c || !c.active) return;
-        if (Math.abs(this.player.x - c.x) < 28 && Math.abs(this.player.y - c.y) < 24) {
-            this.onCollectCheck();
+        for (let i = this.checks.length - 1; i >= 0; i--) {
+            const c = this.checks[i].sprite;
+            if (!c.active) { this.checks.splice(i, 1); continue; }
+            if (Math.abs(this.player.x - c.x) < 28 && Math.abs(this.player.y - c.y) < 24) {
+                this.onCollectCheck(i);
+            }
         }
     }
 
     // L'assegno compare SOPRA il blocco (posizione di riposo) ed è raccoglibile.
-    // La breve salita e l'ondeggio sono solo decorativi: anche senza tween
-    // l'assegno resta comunque piazzato sopra il blocco.
-    revealCheck(block) {
-        // Il blocco ha origine in alto a sinistra: centro X = block.x + 16,
-        // e l'assegno galleggia sopra la superficie della piattaforma.
+    revealCheck(block, bonus) {
         const cx = block.x + GAME.BLOCK / 2;
         const restY = block.y - 26;
-        this.check = this.add.image(cx, restY, 'check').setDepth(6);
+        const sprite = this.add.image(cx, restY + 14, 'check').setDepth(6);
+        this.checks.push({ sprite, bonus });
 
-        // Emerge dal blocco (parte poco sotto la posizione di riposo).
-        this.check.y = restY + 14;
         this.tweens.add({
-            targets: this.check, y: restY, duration: 300, ease: 'Back.easeOut',
+            targets: sprite, y: restY, duration: 300, ease: 'Back.easeOut',
             onComplete: () => {
-                if (!this.check || !this.check.active) return;
+                if (!sprite.active) return;
                 this.tweens.add({
-                    targets: this.check, y: restY - 4,
+                    targets: sprite, y: restY - 4,
                     duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
                 });
             }
         });
     }
 
-    onCollectCheck() {
-        const check = this.check;
-        if (!check || !check.active) return;
-        const x = check.x, y = check.y;
-        check.destroy();            // niente doppie raccolte
-        this.check = null;
-        this.addScore(SCORE.CHECK);
+    onCollectCheck(index) {
+        const entry = this.checks[index];
+        if (!entry || !entry.sprite.active) return;
+        const c = entry.sprite, x = c.x, y = c.y, bonus = entry.bonus;
+        c.destroy();
+        this.checks.splice(index, 1);
+        this.addScore(bonus);
 
-        // Effetto raccolta: assegno "fantasma" che sale e svanisce + "+200".
+        // Effetto raccolta: assegno "fantasma" che sale e svanisce + "+bonus".
         const ghost = this.add.image(x, y, 'check').setDepth(400);
         this.tweens.add({
             targets: ghost, y: y - 30, alpha: 0, scale: 1.3,
             duration: 450, ease: 'Quad.easeOut', onComplete: () => ghost.destroy()
         });
-        this.floatText(x, y - 10, '+' + SCORE.CHECK);
+        this.floatText(x, y - 10, '+' + bonus);
     }
 
     floatText(x, y, str) {
@@ -366,17 +349,42 @@ export class GameScene extends Phaser.Scene {
         this.tweens.add({ targets: s, alpha: 0, duration: 1000, delay: 500, onComplete: () => s.destroy() });
     }
 
+    // --- Spruzzino profumato (solo alcuni livelli) ---
+    createSpray() {
+        this.sprayer = null;
+        if (!this.cfg.spray) return;
+        const groundTop = GAME.HEIGHT - GAME.BLOCK; // superficie del pavimento
+        this.sprayer = this.add.image(this.cfg.spray.x, groundTop, 'sprayer')
+            .setOrigin(0.5, 1).setDepth(50);
+    }
+
+    // Se il player passa davanti allo spruzzino, questo spruzza e lo stordisce.
+    checkSpray() {
+        const s = this.sprayer;
+        if (!s) return;
+        const now = this.time.now;
+        if (now < this.sprayNextAt || this.player.isDead) return;
+
+        const p = this.player;
+        if (Math.abs(p.x - s.x) < SPRAY.RANGE_X && Math.abs(p.y - (s.y - 20)) < SPRAY.RANGE_Y) {
+            this.sprayNextAt = now + SPRAY.COOLDOWN_MS;
+            // Nuvola che parte dall'ugello verso il player.
+            const puff = this.add.image(s.x, s.y - 24, 'spray_puff')
+                .setDepth(60).setScale(0.4).setAlpha(0.95);
+            this.tweens.add({
+                targets: puff, x: p.x, y: p.y - 6, scale: 1.5, alpha: 0,
+                duration: 400, ease: 'Quad.easeOut', onComplete: () => puff.destroy()
+            });
+            p.makeStunned(STUN.DURATION_MS);
+        }
+    }
+
     createUI() {
-        this.hud = new Hud(this, { lives: this.lives });
+        this.hud = new Hud(this, { lives: this.lives, total: this.collectibleSet.length });
 
         this.pauseText = this.add.text(GAME.WIDTH / 2, GAME.HEIGHT / 2, 'PAUSA', {
             fontSize: '48px', color: '#fff'
         }).setOrigin(0.5).setScrollFactor(0).setVisible(false);
-
-        this.gameOverText = this.add.text(GAME.WIDTH / 2, GAME.HEIGHT / 2,
-            'GAME OVER\nPremi INVIO per ricominciare', {
-                fontSize: '40px', color: '#fff', align: 'center', lineSpacing: 8
-            }).setOrigin(0.5).setScrollFactor(0).setVisible(false);
     }
 
     startMusic() {
@@ -398,7 +406,7 @@ export class GameScene extends Phaser.Scene {
         });
 
         this.input.keyboard.on('keydown-ENTER', () => {
-            if (this.isGameOver || this.isWin) this.scene.restart();
+            if (this.isGameOver || this.isWin) this.scene.restart({ level: this.level });
         });
     }
 
@@ -418,10 +426,18 @@ export class GameScene extends Phaser.Scene {
         });
     }
 
+    // L'owlet non tira sassi: lancia penne biro che ruotano in volo.
     fireEnemyBullet(x, y, direction) {
-        const bullet = new Projectile(this, x, y, 'rock_enemy');
+        const bullet = new Projectile(this, x, y, 'pen');
         this.enemyBullets.add(bullet);
-        bullet.fire(direction, PROJECTILE.ENEMY_SPEED);
+        bullet.fire(direction, PROJECTILE.ENEMY_SPEED); // dopo add: il gruppo resetta il corpo
+
+        this.tweens.add({
+            targets: bullet,
+            angle: direction * 360,
+            duration: 500,
+            repeat: -1
+        });
     }
 
     destroyBullet(bullet) {
@@ -467,59 +483,96 @@ export class GameScene extends Phaser.Scene {
     }
 
     onCollectDocument(player, doc) {
-        // Solo il documento "corrente" conta (evita doppie raccolte se qualcosa
-        // resta attivo un frame in più).
+        // Solo l'oggetto "corrente" conta (evita doppie raccolte).
         if (!doc.active) return;
         doc.destroy();
 
         this.docIndex++;
         this.addScore(SCORE.DOC);
-        this.hud.setDocProgress(this.docIndex, DOCUMENTS.length);
+        const total = this.collectibleSet.length;
+        this.hud.setDocProgress(this.docIndex, total);
 
-        if (this.docIndex >= DOCUMENTS.length) {
+        if (this.docIndex >= total) {
             this.hud.setNextDoc(null);
             this.win();
         } else {
-            this.spawnNextDocument();
+            this.spawnNextCollectible();
         }
     }
 
-    // Pratica completa: schermata di vittoria a tutto schermo.
+    // Pratica completa: vittoria. Se c'è un livello successivo si può proseguire,
+    // altrimenti è la vittoria finale. La schermata mostra il punteggio.
     win() {
         this.isWin = true;
         this.physics.pause();
         this.player.anims.play(`${PLAYER.PREFIX}-idle`, true);
+        if (this.playerSplat) this.playerSplat.setVisible(false);
 
+        const menuBtn = { label: 'Menu iniziale', onClick: () => this.scene.start(SCENES.MENU) };
+        if (this.cfg.next) {
+            this.showEndScreen({
+                title: 'Livello completato!', color: '#ffe14d', stroke: '#7a4f06',
+                overlay: 0x3a2a00, celebrate: true,
+                buttons: [
+                    { label: 'Prossimo livello', onClick: () => this.scene.restart({ level: this.cfg.next }) },
+                    menuBtn
+                ]
+            });
+        } else {
+            this.showEndScreen({
+                title: WIN_TEXT, color: '#ffe14d', stroke: '#7a4f06',
+                overlay: 0x3a2a00, celebrate: true,
+                buttons: [
+                    { label: 'Rigioca', onClick: () => this.scene.restart({ level: 1 }) },
+                    menuBtn
+                ]
+            });
+        }
+    }
+
+    // Schermata di fine partita comune (vittoria o sconfitta), con punteggio e
+    // bottoni. `buttonsDelay` ritarda la comparsa dei bottoni (sconfitta).
+    showEndScreen({ title, color, stroke, body, buttons, overlay = 0x2a0000, celebrate = false, buttonsDelay = 0 }) {
         const { width, height } = this.scale;
-        this.add.rectangle(width / 2, height / 2, width, height, 0x3a2a00, 0.85)
+        const FONT = '"Trebuchet MS", "Segoe UI", Arial, sans-serif';
+        this.add.rectangle(width / 2, height / 2, width, height, overlay, 0.85)
             .setScrollFactor(0).setDepth(2000);
 
-        const banner = this.add.text(width / 2, height / 2, WIN_TEXT, {
-            fontFamily: '"Trebuchet MS", "Segoe UI", Arial, sans-serif',
-            fontSize: '64px',
-            fontStyle: 'bold',
-            color: '#ffe14d',
-            stroke: '#7a4f06',
-            strokeThickness: 12,
-            align: 'center',
-            lineSpacing: 6
+        const titleText = this.add.text(width / 2, height / 2 - 110, title, {
+            fontFamily: FONT, fontSize: '52px', fontStyle: 'bold', color, stroke,
+            strokeThickness: 12, align: 'center', lineSpacing: 4
         }).setOrigin(0.5).setScrollFactor(0).setDepth(2001);
-        banner.setShadow(0, 6, 'rgba(0,0,0,0.5)', 8, true, true);
-
-        // Entrata a molla + pulsazione dorata continua.
-        banner.setScale(0.3);
+        titleText.setShadow(0, 6, 'rgba(0,0,0,0.5)', 8, true, true);
+        titleText.setScale(0.3);
         this.tweens.add({
-            targets: banner, scale: 1, duration: 700, ease: 'Back.easeOut',
-            onComplete: () => this.tweens.add({
-                targets: banner, scale: { from: 1, to: 1.06 },
-                duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
-            })
+            targets: titleText, scale: 1, duration: 600, ease: 'Back.easeOut',
+            onComplete: celebrate ? () => this.tweens.add({
+                targets: titleText, scale: { from: 1, to: 1.05 }, duration: 900,
+                yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
+            }) : undefined
         });
 
-        this.add.text(width / 2, height / 2 + 120, 'Premi INVIO per rigiocare', {
-            fontFamily: '"Trebuchet MS", "Segoe UI", Arial, sans-serif',
-            fontSize: '22px', color: '#ffffff'
+        if (body) {
+            this.add.text(width / 2, height / 2 - 28, body, {
+                fontFamily: FONT, fontSize: '20px', color: '#ffffff', align: 'center',
+                lineSpacing: 8, wordWrap: { width: width - 140 }
+            }).setOrigin(0.5).setScrollFactor(0).setDepth(2001);
+        }
+
+        // Punteggio raggiunto.
+        this.add.text(width / 2, height / 2 + 44, 'Punteggio: ' + this.score, {
+            fontFamily: FONT, fontSize: '28px', fontStyle: 'bold', color: '#ffe14d',
+            stroke: '#3a2a00', strokeThickness: 6
         }).setOrigin(0.5).setScrollFactor(0).setDepth(2001);
+
+        const showButtons = () => {
+            const by = height / 2 + 120, n = buttons.length;
+            buttons.forEach((b, i) => {
+                const bx = width / 2 + (i - (n - 1) / 2) * 260;
+                this.makeButton(bx, by, b.label, b.onClick);
+            });
+        };
+        if (buttonsDelay > 0) this.time.delayedCall(buttonsDelay, showButtons); else showButtons();
     }
 
     // --- Timer del livello ---
@@ -545,42 +598,19 @@ export class GameScene extends Phaser.Scene {
         this.player.die();
         this.physics.pause();
         if (this.playerSplat) this.playerSplat.setVisible(false);
-        this.showTimeoutScreen();
+        this.showLoseScreen(TIMEOUT_TEXT);
     }
 
-    showTimeoutScreen() {
-        const { width, height } = this.scale;
-        this.add.rectangle(width / 2, height / 2, width, height, 0x2a0000, 0.85)
-            .setScrollFactor(0).setDepth(2000);
-
-        const title = this.add.text(width / 2, height / 2 - 90, TIMEOUT_TEXT.TITLE, {
-            fontFamily: '"Trebuchet MS", "Segoe UI", Arial, sans-serif',
-            fontSize: '56px', fontStyle: 'bold', color: '#ff6a6a',
-            stroke: '#3a0000', strokeThickness: 12, align: 'center'
-        }).setOrigin(0.5).setScrollFactor(0).setDepth(2001);
-        title.setShadow(0, 6, 'rgba(0,0,0,0.5)', 8, true, true);
-
-        title.setScale(0.3);
-        this.tweens.add({ targets: title, scale: 1, duration: 600, ease: 'Back.easeOut' });
-
-        this.add.text(width / 2, height / 2 + 10, TIMEOUT_TEXT.BODY, {
-            fontFamily: '"Trebuchet MS", "Segoe UI", Arial, sans-serif',
-            fontSize: '20px', color: '#ffffff', align: 'center', lineSpacing: 10,
-            wordWrap: { width: width - 140 }
-        }).setOrigin(0.5).setScrollFactor(0).setDepth(2001);
-
-        // Dopo un secondo: i due bottoni per scegliere come proseguire.
-        this.time.delayedCall(1000, () => this.showTimeoutButtons(), null, this);
-    }
-
-    showTimeoutButtons() {
-        const { width, height } = this.scale;
-        const y = height / 2 + 130;
-        this.makeButton(width / 2 - 130, y, 'Menu iniziale', () => {
-            this.scene.start(SCENES.MENU);
-        });
-        this.makeButton(width / 2 + 130, y, 'Ricomincia livello', () => {
-            this.scene.restart();
+    // Schermata di sconfitta (tempo scaduto o morte): titolo rosso, motivazione,
+    // punteggio e, dopo un secondo, i bottoni Menu / Ricomincia livello.
+    showLoseScreen(text) {
+        this.showEndScreen({
+            title: text.TITLE, color: '#ff6a6a', stroke: '#3a0000', body: text.BODY,
+            overlay: 0x2a0000, buttonsDelay: 1000,
+            buttons: [
+                { label: 'Menu iniziale', onClick: () => this.scene.start(SCENES.MENU) },
+                { label: 'Ricomincia livello', onClick: () => this.scene.restart({ level: this.level }) }
+            ]
         });
     }
 
@@ -607,10 +637,11 @@ export class GameScene extends Phaser.Scene {
     }
 
     spawnBomb() {
-        let x = Phaser.Math.Between(0, GAME.WORLD_WIDTH);
+        const W = this.cfg.worldWidth;
+        let x = Phaser.Math.Between(0, W);
         // Non far comparire la bomba addosso al player.
         if (Math.abs(x - this.player.x) < 200) {
-            x = Phaser.Math.Clamp(this.player.x + 400, 0, GAME.WORLD_WIDTH);
+            x = Phaser.Math.Clamp(this.player.x + 400, 0, W);
         }
         const bomb = this.bombs.create(x, 16, 'bomb');
         bomb.setBounce(1).setCollideWorldBounds(true);
@@ -628,6 +659,8 @@ export class GameScene extends Phaser.Scene {
             this.addScore(ENEMY.SCORE);
             this.yellTaunt();
         } else if (!player.invulnerable) {
+            // Il dude dà un'asciata al player (l'ascia si vede solo ora).
+            if (enemy.prefix === 'dude' && enemy.swingAxe) enemy.swingAxe();
             this.loseLife();
         }
     }
@@ -709,6 +742,6 @@ export class GameScene extends Phaser.Scene {
         this.player.die();
         this.physics.pause();
         if (this.playerSplat) this.playerSplat.setVisible(false);
-        this.gameOverText.setVisible(true);
+        this.showLoseScreen(DEATH_TEXT);
     }
 }

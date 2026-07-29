@@ -74,6 +74,9 @@ export const DOCUMENTS = [
     { key: 'doc_attestato_privacy',         name: 'Attestato privacy',       type: 'attestato' }
 ];
 
+// Livello 2: si raccolgono 8 contratti (tutti uguali), non documenti diversi.
+export const CONTRACTS = Array.from({ length: 8 }, (_, i) => ({ key: 'contract', name: 'Contratto', n: i + 1 }));
+
 // Scritta di vittoria mostrata a tutto schermo quando la pratica è completa.
 export const WIN_TEXT = 'OOOOOOooooo\nCare is Gold!';
 
@@ -89,6 +92,73 @@ export const TIMEOUT_TEXT = {
     BODY: 'Non sei riuscito a soddisfare in tempo gli obblighi necessari per diventare un collaboratore.\nRitenta'
 };
 
+// Sconfitta per morte (vite esaurite).
+export const DEATH_TEXT = {
+    TITLE: 'NOOOOOOOO, Care is Gold!',
+    BODY: 'Sei stato eliminato prima di completare la pratica.\nRitenta'
+};
+
+// Stordimento del player (spruzzino).
+export const STUN = { DURATION_MS: 3000 };
+
+// Spruzzino profumato: se il player gli passa davanti, spruzza e lo stordisce.
+export const SPRAY = {
+    RANGE_X: 42,        // quanto vicino (orizzontale) per far scattare lo spruzzo
+    RANGE_Y: 60,        // e in verticale (deve essere all'altezza dello spruzzino)
+    COOLDOWN_MS: 4000   // pausa tra uno spruzzo e l'altro
+};
+
+// --- Livelli --------------------------------------------------------------
+// Ogni livello definisce mondo, piattaforme (righe di blocchi 32px), nemici,
+// blocchi segreti (con bonus dell'assegno), oggetti da raccogliere e spruzzino.
+// { x: bordo sinistro, y: bordo superiore, n: numero blocchi } per le piattaforme.
+export const LEVELS = {
+    1: {
+        worldWidth: 2000,
+        platforms: [
+            { x: 308, y: 454, n: 12 }, { x: 858, y: 374, n: 12 },
+            { x: 1358, y: 294, n: 12 }, { x: 1658, y: 454, n: 12 }
+        ],
+        secretBlocks: [{ x: 1050, y: 374, bonus: 200 }],
+        enemies: [
+            { type: 'dude', x: 500, y: 420 },
+            { type: 'dude', x: 1050, y: 340 },
+            { type: 'dude', x: 1700, y: 500, patrolMin: 1600, patrolMax: 1950 },
+            { type: 'owlet', x: 800, y: 500, patrolMin: 650, patrolMax: 1050 },
+            { type: 'owlet', x: 1550, y: 270 }
+        ],
+        collectibles: DOCUMENTS,
+        spray: null,
+        next: 2
+    },
+    2: {
+        worldWidth: 3200, // più lunga del livello 1
+        platforms: [
+            { x: 300, y: 454, n: 8 }, { x: 640, y: 370, n: 6 }, { x: 980, y: 454, n: 6 },
+            { x: 1300, y: 360, n: 8 }, { x: 1750, y: 454, n: 8 }, { x: 2100, y: 360, n: 6 },
+            { x: 2420, y: 450, n: 8 }, { x: 2800, y: 370, n: 8 }
+        ],
+        // due blocchi segreti (tessere di piattaforme basse, raggiungibili da terra)
+        secretBlocks: [
+            { x: 704, y: 370, bonus: 250 },   // tessera della piattaforma a x=640
+            { x: 2896, y: 370, bonus: 400 }   // tessera della piattaforma a x=2800
+        ],
+        // due nemici in più del livello 1: 4 dude + 3 owlet
+        enemies: [
+            { type: 'dude', x: 500, y: 420, patrolMin: 300, patrolMax: 620 },
+            { type: 'dude', x: 1000, y: 420, patrolMin: 850, patrolMax: 1250 },
+            { type: 'dude', x: 1850, y: 500, patrolMin: 1750, patrolMax: 2150 },
+            { type: 'dude', x: 2650, y: 420, patrolMin: 2450, patrolMax: 2950 },
+            { type: 'owlet', x: 820, y: 500, patrolMin: 650, patrolMax: 1150 },
+            { type: 'owlet', x: 1400, y: 320 },
+            { type: 'owlet', x: 2460, y: 410 }
+        ],
+        collectibles: CONTRACTS,
+        spray: { x: 1500 }, // spruzzino a metà mappa, sul terreno
+        next: null
+    }
+};
+
 // Il grido dell'uomo d'affari quando elimina un nemico.
 export const TAUNT = {
     TEXT: 'OOOOO CAREISGOLD',
@@ -100,12 +170,12 @@ export const TAUNT = {
 // Personaggi: cartella + prefisso del nome file. Condividono tutti lo stesso
 // set di animazioni (vedi CHAR_ACTIONS), quindi basta cambiare questi dati.
 // `generated: true` = niente file su disco, i frame sono disegnati a runtime
-// (vedi utils/businessman.js).
+// (vedi utils/character.js).
 export const CHARACTERS = {
     biz: { generated: true },
     pink: { folder: 'assets/player/pink/', base: 'Pink_Monster' },
-    dude: { folder: 'assets/enemies/dude_monster/', base: 'Dude_Monster' },
-    owlet: { folder: 'assets/enemies/owlet_monster/', base: 'Owlet_Monster' }
+    dude: { generated: true },   // nemico disegnato a runtime (vedi utils/character.js)
+    owlet: { generated: true }   // nemico disegnato a runtime
 };
 
 // Azioni comuni a tutti i personaggi: suffisso file, numero di frame, velocità.

@@ -34,6 +34,30 @@ export class Player extends Entity {
         this.throwAnimUntil = 0;
         this.invulnerable = false;
         this.isDead = false;
+        this.stunUntil = 0;       // finché now < stunUntil è stordito (spruzzino)
+        this.stunSprite = null;   // stelline che gli girano sopra la testa
+    }
+
+    // Stordito dallo spruzzino: per `ms` non può muoversi/saltare/sparare.
+    makeStunned(ms) {
+        this.stunUntil = this.scene.time.now + ms;
+    }
+
+    isStunned(now) {
+        return now < this.stunUntil;
+    }
+
+    updateStun(show) {
+        if (show) {
+            if (!this.stunSprite) {
+                this.stunSprite = this.scene.add.image(this.x, this.y - 22, 'stun')
+                    .setDepth((this.depth || 0) + 2);
+                this.scene.tweens.add({ targets: this.stunSprite, angle: 360, duration: 900, repeat: -1 });
+            }
+            this.stunSprite.setVisible(true).setPosition(this.x, this.y - 22);
+        } else if (this.stunSprite) {
+            this.stunSprite.setVisible(false);
+        }
     }
 
     isLeftDown() {
@@ -62,6 +86,15 @@ export class Player extends Entity {
 
         const now = this.scene.time.now;
         const onGround = this.body.blocked.down || this.body.touching.down;
+
+        // --- Stordimento: nessun input, resta fermo con le stelline sopra ---
+        if (this.isStunned(now)) {
+            this.setVelocityX(0);
+            this.updateStun(true);
+            this.anims.play(`${this.prefix}-hurt`, true);
+            return;
+        }
+        this.updateStun(false);
 
         // --- Movimento orizzontale ---
         if (this.isLeftDown()) {
@@ -147,5 +180,6 @@ export class Player extends Entity {
         this.setVelocity(0, 0);
         this.setTint(0xff5555);
         this.anims.play(`${this.prefix}-death`, true);
+        if (this.stunSprite) { this.stunSprite.destroy(); this.stunSprite = null; }
     }
 }

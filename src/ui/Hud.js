@@ -1,11 +1,11 @@
 import { HeartsDisplay } from './HeartsDisplay.js';
 import { AmmoDisplay } from './AmmoDisplay.js';
-import { DOCUMENTS, TIMER } from '../config/constants.js';
+import { TIMER } from '../config/constants.js';
 
 // HUD di gioco: punteggio (stile moderno con icona e bordo), vite a cuori e
 // munizioni. Tutto fissato alla camera (scrollFactor 0) e sopra la scena.
 export class Hud {
-    constructor(scene, { lives }) {
+    constructor(scene, { lives, total = 8 }) {
         this.scene = scene;
         const depth = 1000;
 
@@ -39,13 +39,13 @@ export class Hud {
             stroke: '#3a2a00', strokeThickness: 7
         };
 
-        // Contatore "documenti raccolti / totali".
-        this.docCounter = scene.add.text(rx, 16, `0 / ${DOCUMENTS.length}`, nameFont)
+        // Contatore "oggetti raccolti / totali".
+        this.docCounter = scene.add.text(rx, 16, `0 / ${total}`, nameFont)
             .setOrigin(1, 0).setScrollFactor(0).setDepth(depth);
         this.docCounter.setShadow(2, 4, 'rgba(0,0,0,0.45)', 4, true, true);
 
-        // Etichetta "Prossimo documento:".
-        this.nextLabel = scene.add.text(rx, 58, 'Prossimo documento:', {
+        // Etichetta "Prossimo:".
+        this.nextLabel = scene.add.text(rx, 58, 'Prossimo:', {
             fontFamily: '"Trebuchet MS", "Segoe UI", Arial, sans-serif',
             fontSize: '16px', color: '#ffffff'
         }).setOrigin(1, 0).setScrollFactor(0).setDepth(depth);

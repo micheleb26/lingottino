@@ -55,11 +55,38 @@ export class Enemy extends Entity {
         return false;
     }
 
+    // Colpo d'ascia dato al player alla collisione. L'ascia NON esiste mentre
+    // cammina: viene creata solo qui, fa un fendente e sparisce.
+    swingAxe() {
+        if (this.axe) return; // fendente già in corso
+        const dir = this.direction;
+        const axe = this.scene.add.image(this.x + dir * 11, this.y - 4, 'axe')
+            .setDepth((this.depth || 0) + 1)
+            .setOrigin(0.5, 0.9)
+            .setFlipX(dir < 0)
+            .setAngle(dir < 0 ? 62 : -62); // alzata all'indietro
+        this.axe = axe;
+
+        this.scene.tweens.add({
+            targets: axe,
+            angle: dir < 0 ? -28 : 28,     // fendente in avanti/basso
+            duration: 200,
+            ease: 'Quad.easeIn',
+            onComplete: () => {
+                this.scene.time.delayedCall(80, () => {
+                    if (axe.active) axe.destroy();
+                    if (this.axe === axe) this.axe = null;
+                });
+            }
+        });
+    }
+
     die() {
         if (this.isDying) return;
         this.isDying = true;
         this.setVelocity(0, 0);
         if (this.body) this.body.enable = false;
+        if (this.axe) { this.axe.destroy(); this.axe = null; }
         this.anims.play(`${this.prefix}-death`, true);
         this.once('animationcomplete', () => this.destroy());
     }

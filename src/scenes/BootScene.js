@@ -1,5 +1,5 @@
 import { PATHS, SCENES, CHARACTERS, CHAR_ACTIONS, CHAR_FRAME, DOCUMENTS } from '../config/constants.js';
-import { createBusinessmanTextures } from '../utils/businessman.js';
+import { createCharacterTextures } from '../utils/character.js';
 
 // Carica una sola volta tutti gli asset e registra le animazioni globali,
 // poi passa al menu principale. Centralizzare qui i caricamenti evita
@@ -45,11 +45,20 @@ export class BootScene extends Phaser.Scene {
         // Personaggi (player + nemici): una spritesheet per azione.
         Object.keys(CHARACTERS).forEach((prefix) => this.loadCharacter(prefix));
 
-        // Proiettili: il player lancia lingotti (gold_shot), i nemici sassi.
-        this.load.image('rock_enemy', 'assets/enemies/dude_monster/Rock2.png');
+        // Proiettili: il player lancia lingotti (gold_shot), l'owlet penne biro.
+        this.load.image('pen', 'assets/enemies/pen.png');
+
+        // Ascia del dude: si vede solo quando colpisce il player (collisione).
+        this.load.image('axe', 'assets/enemies/axe.png');
 
         // Documenti della pratica (pixel-art 32x32): restano su filtro NEAREST.
         DOCUMENTS.forEach((d) => this.load.image(d.key, `assets/documents/${d.key}.png`));
+
+        // Contratto (livello 2), spruzzino profumato + spruzzo + stelline stordimento.
+        this.load.image('contract', 'assets/documents/contract.png');
+        this.load.image('sprayer', 'assets/enemies/sprayer.png');
+        this.load.image('spray_puff', 'assets/enemies/spray_puff.png');
+        this.load.image('stun', 'assets/enemies/stun.png');
 
         // Piccione dispettoso e la sua "cacca" (pixel-art).
         // Il piccione è una spritesheet 32x24: 4 frame per lo sbattito d'ali.
@@ -69,7 +78,7 @@ export class BootScene extends Phaser.Scene {
     create() {
         // I personaggi "generated" non hanno file: vanno disegnati prima di
         // creare le animazioni, che leggono i frame dalla texture.
-        createBusinessmanTextures(this, 'biz');
+        ['biz', 'dude', 'owlet'].forEach((prefix) => createCharacterTextures(this, prefix));
 
         Object.keys(CHARACTERS).forEach((prefix) => this.createCharacterAnims(prefix));
 
