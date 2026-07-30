@@ -16,7 +16,9 @@
       "Bash(node decode.js enemies_b64.txt enemies_preview.png)",
       "Bash(node \"C:/Users/mlochi/AppData/Local/Temp/claude/C--Users-mlochi-Progetti-lingottino-github-lingottino/b981a448-7492-4063-bf2f-dfe1ba902071/scratchpad/gen_level2.js\" \"assets/documents\" \"assets/secret\" \"assets/enemies\")",
       "Bash(sed -i \"s#\\\\.\\\\./\\\\.\\\\./\\\\.\\\\./\\\\.\\\\./\\\\.\\\\./Progetti/lingottino_github/lingottino#C:/Users/mlochi/Progetti/lingottino_github/lingottino#g\" ml2.js)",
-      "Bash(node ml2.js)"
+      "Bash(node ml2.js)",
+      "Bash(node \"C:/Users/mlochi/AppData/Local/Temp/claude/C--Users-mlochi-Progetti-lingottino-github-lingottino/b981a448-7492-4063-bf2f-dfe1ba902071/scratchpad/gen_characters.js\" \"assets/characters\")",
+      "Bash(node \"C:/Users/mlochi/AppData/Local/Temp/claude/C--Users-mlochi-Progetti-lingottino-github-lingottino/b981a448-7492-4063-bf2f-dfe1ba902071/scratchpad/mc.js\")"
     ]
   }
 }

@@ -168,14 +168,13 @@ export const TAUNT = {
 };
 
 // Personaggi: cartella + prefisso del nome file. Condividono tutti lo stesso
-// set di animazioni (vedi CHAR_ACTIONS), quindi basta cambiare questi dati.
-// `generated: true` = niente file su disco, i frame sono disegnati a runtime
-// (vedi utils/character.js).
+// set di animazioni (vedi CHAR_ACTIONS). Gli spritesheet sono file veri e
+// propri in assets/characters/ (uno per azione, es. biz_Walk_6.png).
 export const CHARACTERS = {
-    biz: { generated: true },
-    pink: { folder: 'assets/player/pink/', base: 'Pink_Monster' },
-    dude: { generated: true },   // nemico disegnato a runtime (vedi utils/character.js)
-    owlet: { generated: true }   // nemico disegnato a runtime
+    biz:   { folder: 'assets/characters/biz/',   base: 'biz' },
+    pink:  { folder: 'assets/player/pink/',      base: 'Pink_Monster' },
+    dude:  { folder: 'assets/characters/dude/',  base: 'dude' },
+    owlet: { folder: 'assets/characters/owlet/', base: 'owlet' }
 };
 
 // Azioni comuni a tutti i personaggi: suffisso file, numero di frame, velocità.

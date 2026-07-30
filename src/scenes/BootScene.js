@@ -1,5 +1,4 @@
 import { PATHS, SCENES, CHARACTERS, CHAR_ACTIONS, CHAR_FRAME, DOCUMENTS } from '../config/constants.js';
-import { createCharacterTextures } from '../utils/character.js';
 
 // Carica una sola volta tutti gli asset e registra le animazioni globali,
 // poi passa al menu principale. Centralizzare qui i caricamenti evita
@@ -76,10 +75,8 @@ export class BootScene extends Phaser.Scene {
     }
 
     create() {
-        // I personaggi "generated" non hanno file: vanno disegnati prima di
-        // creare le animazioni, che leggono i frame dalla texture.
-        ['biz', 'dude', 'owlet'].forEach((prefix) => createCharacterTextures(this, prefix));
-
+        // I personaggi sono spritesheet caricate da file (vedi loadCharacter):
+        // qui si creano solo le animazioni leggendo i frame dalle texture.
         Object.keys(CHARACTERS).forEach((prefix) => this.createCharacterAnims(prefix));
 
         // Volo del piccione: ali che sbattono (loop continuo).

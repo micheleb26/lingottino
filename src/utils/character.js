@@ -29,11 +29,11 @@ export const LOOKS = {
     // Nemico "owlet": bionda coi capelli lunghi fino alle spalle, maglia gialla,
     // pantaloni bianchi. Lancia penne biro.
     owlet: {
-        skin: '#f1c79c', skinDark: '#d4a878', hair: '#e6c34d', hairStyle: 'long',
+        skin: '#f1c79c', skinDark: '#d4a878', hair: '#c6b066', hairStyle: 'long', // biondo paglia
         glasses: false, suit: false,
-        shirt: '#f2d13b', shirtDark: '#d4b21f',      // maglia gialla
-        pants: '#eef0f2', pantsDark: '#cdd2d8',      // pantaloni bianchi
-        shoe: '#bfc4cc', collar: '#f2d13b', throwItem: null
+        shirt: '#d7dbe0', shirtDark: '#b3b9c1',      // maglia grigio chiaro
+        pants: '#cf9f2e', pantsDark: '#a67d1e',      // pantaloni giallo senape
+        shoe: '#4a4238', collar: '#d7dbe0', throwItem: null
     }
 };
 
